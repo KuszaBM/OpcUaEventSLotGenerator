@@ -23,6 +23,7 @@ public class OpcUaSlotsProvider {
     private Map<Integer, UaSlotBase> slotToAdd;
     private Map<Integer, SlotToPlc> slotsToPLc;
     private boolean afterInit;
+    private UaNotifierSingle uaNotifierSingle;
     private String address;
     private String opcUaName;
     private int nameSpace;
@@ -39,9 +40,11 @@ public class OpcUaSlotsProvider {
         this.afterInit = false;
         this.scheduler = new InThreadScheduler("Plc");
         this.slots = new ArrayList<>();
+        logger.info("jkaj");
         try {
             this.client = OpcUaClient.create(address);
         } catch (UaException e) {
+            logger.info("jkaj 12");
             throw new RuntimeException(e);
         }
     }
@@ -164,6 +167,7 @@ public class OpcUaSlotsProvider {
         }
     }
 
+
     public Map<Integer, UaSlotBase> getSlotToAdd() {
         return slotToAdd;
     }
@@ -186,5 +190,13 @@ public class OpcUaSlotsProvider {
             ret[i] = ubajtki[i].byteValue();
         }
         return ret;
+    }
+
+    public UaNotifierSingle getUaNotifierSingle() {
+        return uaNotifierSingle;
+    }
+
+    public void setUaNotifierSingle(UaNotifierSingle uaNotifierSingle) {
+        this.uaNotifierSingle = uaNotifierSingle;
     }
 }

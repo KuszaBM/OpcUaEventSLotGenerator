@@ -74,6 +74,7 @@ public class OpcUaReader<T> implements Supplier<T> {
             paramReaders[idx] = () -> {
                 try {
                     NodeId dataNode = new NodeId(slotBase.getNamespace(), "\"" + slotBase.getOpcUaName() + "\"." + "\"" + a.name() + "_" + slotBase.getSlotName() +  "\"");
+                    System.out.println(dataNode);
                     return client.getAddressSpace().getVariableNode(dataNode).readValue().getValue().getValue();
                 } catch (UaException e) {
                     throw new RuntimeException(e);

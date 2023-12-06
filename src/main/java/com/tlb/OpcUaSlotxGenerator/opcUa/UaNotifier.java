@@ -33,13 +33,14 @@ public class UaNotifier {
         while(isListening) {
             try {
                 Boolean trig = (Boolean) slotBase.getClient().getAddressSpace().getVariableNode(slotBase.getTokenId()).readValue().getValue().getValue();
+                Thread.sleep(interval);
                 if(trig == direction) {
                     isListening = false;
                     slot.onTokenChange();
                     logger.info("ACK/RCK from PLC - {}", slotBase.getSlotName());
                     wasAnswer = true;
                 }
-                Thread.sleep(interval);
+
             } catch (Exception e) {
                 logger.info("UA Listener {} - exception - ",slotBase.getSlotName(), e);
                 if(!isListening && !wasAnswer) {

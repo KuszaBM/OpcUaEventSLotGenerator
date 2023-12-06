@@ -1,6 +1,8 @@
 package com.tlb.OpcUaSlotxGenerator.opcUa;
 
+import com.tlb.OpcUaSlotxGenerator.schedulers.InThreadScheduler;
 import org.eclipse.milo.opcua.stack.core.types.builtin.DataValue;
+import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId;
 import org.eclipse.milo.opcua.stack.core.types.builtin.StatusCode;
 import org.eclipse.milo.opcua.stack.core.types.builtin.Variant;
 import org.reactivestreams.Publisher;
@@ -21,21 +23,22 @@ public class SlotFromPlc implements UaResponseListener {
     public SlotFromPlc(UaSlotBase slotBase) {
         this.slotBase = slotBase;
         System.out.println("new slot from plc");
-        try {
-            this.slotNotifier = new UaNotifier(true, this, slotBase, 100);
-        } catch (ExecutionException | InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+//        try {
+//            this.slotNotifier = new UaNotifier(true, this, slotBase, 100);
+//        } catch (ExecutionException | InterruptedException e) {
+//            throw new RuntimeException(e);
+//        }
         // TODO Auto-generated constructor stub
     }
 
     public <Req> Publisher<Req> makePublisher(Supplier<? extends Req> requestReader, InThreadScheduler plcExecutor) {
         if (this.reader != null)
             throw new IllegalStateException("makePublisher already called");
-        if(slotNotifier == null)
-            throw new IllegalStateException("UaNotifier must not ne null");
+//        if(slotNotifier == null)
+//            throw new IllegalStateException("UaNotifier must not ne null");
          this.plcExecutor = plcExecutor;
-        slotNotifier.startListen();
+//        slotNotifier.startListen();
+        isListening = true;
         SlotReader<Req> publisher = new SlotReader<>(requestReader);
         this.reader = publisher;
         return publisher;
@@ -79,13 +82,17 @@ public class SlotFromPlc implements UaResponseListener {
         } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException(e);
         }
-        slotNotifier.setReadyForRequest();
+       // slotNotifier.setReadyForRequest();
+        this.isListening = true;
         logger.info("Finished write to Opc");
     }
     Logger logger = LoggerFactory.getLogger(SlotFromPlc.class);
     private ReaderBase reader;
     private SubscriberBase subscriber;
+    private UaNotifierSingle uaNotifierSingle;
     private UaSlotBase slotBase;
+    private boolean isListening;
+    private final boolean direction = true;
 
     private Scheduler plcExecutor; // TODO Provide valid executor
     private Scheduler fluxExecutor; // TODO provide valid executor
@@ -94,6 +101,45 @@ public class SlotFromPlc implements UaResponseListener {
     @Override
     public void onTokenChange() {
         reader.onPlcRequest();
+    }
+
+    @Override
+    public boolean isActivated() {
+        return false;
+    }
+
+    public UaNotifierSingle getUaNotifierSingle() {
+        return uaNotifierSingle;
+    }
+
+    public void setUaNotifierSingle(UaNotifierSingle uaNotifierSingle) {
+        this.uaNotifierSingle = uaNotifierSingle;
+        uaNotifierSingle.addSlotToNotifier(this);
+    }
+
+    @Override
+    public void setListening(boolean listening) {
+        this.isListening = listening;
+    }
+
+    @Override
+    public boolean getDirection() {
+        return direction;
+    }
+
+    @Override
+    public NodeId getTokenNode() {
+        return slotBase.getTokenId();
+    }
+
+    @Override
+    public boolean isListening() {
+        return isListening;
+    }
+
+    @Override
+    public String getName() {
+        return slotBase.getSlotName();
     }
 
     private interface ReaderBase {

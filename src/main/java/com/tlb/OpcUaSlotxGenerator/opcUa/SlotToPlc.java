@@ -1,6 +1,7 @@
 package com.tlb.OpcUaSlotxGenerator.opcUa;
 
 import com.tlb.OpcUaSlotxGenerator.schedulers.InThreadScheduler;
+import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId;
 import org.reactivestreams.Processor;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
@@ -112,6 +113,9 @@ public class SlotToPlc {
         private Subscription subscription;
         private Subscription publication;
         private UaNotifier slotNotifier;
+        private UaNotifierSingle uaNotifierSingle;
+        private boolean isListening;
+        private final boolean direction = true;
         private Subscriber<? super Resp> subscriber;
         private AtomicBoolean inRequest = new AtomicBoolean(false);
         private AtomicReference<Resp> response = new AtomicReference<>(null);
@@ -119,14 +123,19 @@ public class SlotToPlc {
         public Slot(Consumer<? super Req> requestWriter, Supplier<? extends Resp> responseReader) {
             this.requestWriter = requestWriter;
             this.responseReader = responseReader;
-            try {
-                this.slotNotifier = new UaNotifier(false, this, slotBase, 100);
-            } catch (ExecutionException | InterruptedException e) {
-                throw new RuntimeException(e);
-            }
+//            try {
+//                this.slotNotifier = new UaNotifier(false, this, slotBase, 100);
+//            } catch (ExecutionException | InterruptedException e) {
+//                throw new RuntimeException(e);
+//            }
         }
         private final void sendRequestToPlc() {
-            slotNotifier.startListen();
+            //version for many notifiers
+            //slotNotifier.startListen();
+
+
+            uaNotifierSingle.startListeningOnSLot(this);
+
             // TODO Wrrite this
         }
         @Override
@@ -136,6 +145,15 @@ public class SlotToPlc {
             this.subscription = s;
             if (! inRequest.get() && this.subscription != null)
                 this.subscription.request(1);
+        }
+
+        public UaNotifierSingle getUaNotifierSingle() {
+            return uaNotifierSingle;
+        }
+
+        public void setUaNotifierSingle(UaNotifierSingle uaNotifierSingle) {
+            this.uaNotifierSingle = uaNotifierSingle;
+            uaNotifierSingle.addSlotToNotifier(this);
         }
 
         @Override
@@ -155,6 +173,36 @@ public class SlotToPlc {
             if (! response.compareAndSet(null, resp))
                 throw new IllegalStateException("New response from PLC but previous one has not been handled");
             fluxExecutor.schedule(this::proceedFluxSubscription);
+        }
+
+        @Override
+        public boolean isActivated() {
+            return false;
+        }
+
+        @Override
+        public void setListening(boolean listening) {
+            this.isListening = listening;
+        }
+
+        @Override
+        public boolean getDirection() {
+            return direction;
+        }
+
+        @Override
+        public NodeId getTokenNode() {
+            return slotBase.getTokenId();
+        }
+
+        @Override
+        public boolean isListening() {
+            return isListening;
+        }
+
+        @Override
+        public String getName() {
+            return slotBase.getSlotName();
         }
 
         @Override
