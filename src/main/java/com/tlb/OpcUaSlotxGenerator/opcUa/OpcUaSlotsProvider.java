@@ -27,10 +27,16 @@ public class OpcUaSlotsProvider {
     private String address;
     private String opcUaName;
     private int nameSpace;
+    private OpcUaClient readerClient;
     private final InThreadScheduler scheduler;
     private OpcUaClient client;
     Logger logger = LoggerFactory.getLogger(OpcUaSlotsProvider.class);
     private List<UaSlotBase> slots;
+    private String opcAddress;
+
+    public OpcUaClient getReaderClient() {
+        return readerClient;
+    }
 
     public OpcUaSlotsProvider(String address, String opcUaName, int nameSpace) {
         this.address = address;
@@ -43,6 +49,7 @@ public class OpcUaSlotsProvider {
         logger.info("jkaj");
         try {
             this.client = OpcUaClient.create(address);
+            this.readerClient = OpcUaClient.create(address);
         } catch (UaException e) {
             logger.info("jkaj 12");
             throw new RuntimeException(e);
@@ -52,18 +59,20 @@ public class OpcUaSlotsProvider {
         logger.info("Trying to establish connection to OPCUA server");
         try {
             this.client.connect().get();
+            this.readerClient.connect().get();
             logger.warn("OPCUA connection established");
             readServer();
             afterInit = true;
             scheduler.run();
-        } catch (InterruptedException | ExecutionException | UaException e) {
-            logger.info("OPC UA - DC");
-            startConnection();
+        } catch (Exception e) {
+            logger.info("OPC UA - DC", e);
+
             try {
                 Thread.sleep(5000);
             } catch (InterruptedException ex) {
                 throw new RuntimeException(ex);
             }
+            startConnection();
         }
     }
 
@@ -111,9 +120,10 @@ public class OpcUaSlotsProvider {
             for(int i = 0; i < afterSplit.length; i++ ) {
                 if(afterSplit[i].equals("TOKEN")) {
                     int z = Integer.parseInt(afterSplit[i-1]);
+
                     if(z == 0) {
                         slotToAdd.put(z, new UaSlotBase(z, SlotType.ToPlc, cN.getNodeId(), nameSpace, opcUaName, client));
-                        startHb(cN.getNodeId());
+                        //startHb(cN.getNodeId());
 
                     } else {
                         SlotType slotType = afterSplit[i+1].equals("IN") ? SlotType.ToPlc : SlotType.FromPlc;
@@ -148,6 +158,7 @@ public class OpcUaSlotsProvider {
     }
 
     public void readServer() throws UaException {
+
         logger.info("Reading info from server OpcUa");
         String opcUaNameNodeFormat = "\"" + this.opcUaName + "\"";
         NodeId nodeId = new NodeId(3, opcUaNameNodeFormat);

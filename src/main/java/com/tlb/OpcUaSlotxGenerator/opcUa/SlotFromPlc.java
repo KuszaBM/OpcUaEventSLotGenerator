@@ -133,6 +133,11 @@ public class SlotFromPlc implements UaResponseListener {
     }
 
     @Override
+    public int getSlotId() {
+        return slotBase.getSlotId();
+    }
+
+    @Override
     public boolean isListening() {
         return isListening;
     }

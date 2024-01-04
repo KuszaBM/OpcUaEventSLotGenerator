@@ -15,14 +15,19 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 
-public class SlotToPlc {
+public class SlotToPlc implements UaResponseListener {
     private UaSlotBase slotBase;
     private UaResponseListener slot;
     private Scheduler plcExecutor; // TODO Provide valid executor
     private Scheduler fluxExecutor; // TODO provide valid executor
 
+    private UaNotifierSingle uaNotifierSingle;
     public UaSlotBase getSlotBase() {
         return slotBase;
+    }
+    public void setUaNotifierSingle(UaNotifierSingle uaNotifierSingle) {
+        this.uaNotifierSingle = uaNotifierSingle;
+        uaNotifierSingle.addSlotToNotifier(this);
     }
     public SlotToPlc(UaSlotBase slotBase) {
         this.slotBase = slotBase;
@@ -103,6 +108,47 @@ public class SlotToPlc {
         return slot;
     }
 
+    @Override
+    public void onTokenChange() {
+        System.out.println("jajca 122");
+        slot.onTokenChange();
+    }
+
+    @Override
+    public boolean isActivated() {
+        return false;
+    }
+
+    @Override
+    public void setListening(boolean listening) {
+
+    }
+
+    @Override
+    public boolean getDirection() {
+        return true;
+    }
+
+    @Override
+    public NodeId getTokenNode() {
+        return slotBase.getTokenId();
+    }
+
+    @Override
+    public boolean isListening() {
+        return false;
+    }
+
+    @Override
+    public String getName() {
+        return slotBase.getSlotName();
+    }
+
+    @Override
+    public int getSlotId() {
+        return slotBase.getSlotId();
+    }
+
     // Triggers PHS → PLC request sending procedure, called by PLC executor.
     // Once PLC confirms response is ready, slot.onResponseFromPlc() is to be called (from PLC thread, it is non-blocking)
 
@@ -113,7 +159,6 @@ public class SlotToPlc {
         private Subscription subscription;
         private Subscription publication;
         private UaNotifier slotNotifier;
-        private UaNotifierSingle uaNotifierSingle;
         private boolean isListening;
         private final boolean direction = true;
         private Subscriber<? super Resp> subscriber;
@@ -151,10 +196,7 @@ public class SlotToPlc {
             return uaNotifierSingle;
         }
 
-        public void setUaNotifierSingle(UaNotifierSingle uaNotifierSingle) {
-            this.uaNotifierSingle = uaNotifierSingle;
-            uaNotifierSingle.addSlotToNotifier(this);
-        }
+
 
         @Override
         public void onNext(Req request) {
@@ -163,7 +205,7 @@ public class SlotToPlc {
 
             plcExecutor.schedule(() -> {
                 requestWriter.accept(request);
-                sendRequestToPlc();
+                //sendRequestToPlc();
             });
         }
 
@@ -188,6 +230,11 @@ public class SlotToPlc {
         @Override
         public boolean getDirection() {
             return direction;
+        }
+
+        @Override
+        public int getSlotId() {
+            return slotBase.getSlotId();
         }
 
         @Override

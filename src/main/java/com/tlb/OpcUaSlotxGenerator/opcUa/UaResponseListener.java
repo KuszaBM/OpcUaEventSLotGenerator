@@ -11,4 +11,5 @@ public interface UaResponseListener {
     NodeId getTokenNode();
     boolean isListening();
     String getName();
+    int getSlotId();
 }

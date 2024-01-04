@@ -10,6 +10,7 @@ public class UaSlotBase {
     private NodeId tokenId;
     private SlotType slotType;
     private OpcUaClient client;
+    private int slotNo;
     private String slotName;
     private String opcUaName;
     private int namespace;
@@ -36,6 +37,10 @@ public class UaSlotBase {
         this.slotName = "SLOT_" + slotId;
     }
     //Getters & Setters
+
+    public int getSlotNo() {
+        return slotNo;
+    }
 
     public int getSlotId() {
         return slotId;

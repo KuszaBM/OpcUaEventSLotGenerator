@@ -25,6 +25,7 @@ public class UaNotifierSingle {
 
     public void addSlotToNotifier(UaResponseListener slot) {
         slots.add(slot);
+        slots2.put(slot.getSlotId(), slot);
     }
     public void startListeningOnSLot(UaResponseListener slot) {
         slot.setListening(true);
@@ -39,7 +40,6 @@ public class UaNotifierSingle {
     private boolean isActivated(UaResponseListener slot) {
         try {
             Boolean trig = (Boolean) client.getAddressSpace().getVariableNode(slot.getTokenNode()).readValue().getValue().getValue();
-            logger.info("jaj {} - {}", trig, slot.getName());
             if(trig == slot.getDirection()) {
                 count++;
                 stopListeningOnSLot(slot);
@@ -53,6 +53,14 @@ public class UaNotifierSingle {
             return false;
         }
         return false;
+    }
+    public void runByMethod(Short[] slots) {
+        for(int i = 0; i < slots.length; i++) {
+            if(slots[i] != -1) {
+                logger.info("Activating slot {}", slots[i]);
+                activateSlot(slots2.get(slots[i].intValue()));
+            }
+        }
     }
     public void run() {
         logger.info("notifier running - slots reported {}", slots.size());
@@ -69,7 +77,7 @@ public class UaNotifierSingle {
                 }
             }
             int z = (int) System.currentTimeMillis();
-            logger.info("loop time = {} | slots activated = {}", z - x, count);
+           // logger.info("loop time = {} | slots activated = {}", z - x, count);
 //            try {
 //                Thread.sleep(100);
 //            } catch (InterruptedException e) {
