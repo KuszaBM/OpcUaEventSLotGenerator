@@ -32,7 +32,7 @@ public class UaNotifier {
         wasAnswer = false;
         while(isListening) {
             try {
-                Boolean trig = (Boolean) slotBase.getClient().getAddressSpace().getVariableNode(slotBase.getTokenId()).readValue().getValue().getValue();
+                Boolean trig = (Boolean) slotBase.getOpcUaClientProvider().getClient().getAddressSpace().getVariableNode(slotBase.getTokenId()).readValue().getValue().getValue();
                 Thread.sleep(interval);
                 if(trig == direction) {
                     isListening = false;

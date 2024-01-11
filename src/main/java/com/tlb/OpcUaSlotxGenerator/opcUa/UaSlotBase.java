@@ -9,13 +9,13 @@ public class UaSlotBase {
     private int slotId = -1;
     private NodeId tokenId;
     private SlotType slotType;
-    private OpcUaClient client;
+    private OpcUaClientProvider opcUaClientProvider;
     private int slotNo;
     private String slotName;
     private String opcUaName;
     private int namespace;
     protected Logger logger = LoggerFactory.getLogger(UaSlotBase.class);
-    public UaSlotBase(int slotId, SlotType type, int nameSpace, String opcUaName, OpcUaClient client) {
+    public UaSlotBase(int slotId, SlotType type, int nameSpace, String opcUaName) {
         this.slotId = slotId;
         this.slotType = type;
         this.opcUaName = opcUaName;
@@ -27,11 +27,11 @@ public class UaSlotBase {
         this.tokenId = new NodeId(nameSpace, s + s2);
         logger.info("New slot created, slot name - {} | nodeId = {}", slotName, tokenId);
     }
-    public UaSlotBase(int slotId, SlotType type, NodeId tokenNodeId, int nameSpace, String opcUaName, OpcUaClient client) {
+    public UaSlotBase(int slotId, SlotType type, NodeId tokenNodeId, int nameSpace, String opcUaName, OpcUaClientProvider clientProvider) {
+        this.opcUaClientProvider = clientProvider;
         this.slotId = slotId;
         this.slotType = type;
         this.tokenId = tokenNodeId;
-        this.client = client;
         this.opcUaName = opcUaName;
         this.namespace = nameSpace;
         this.slotName = "SLOT_" + slotId;
@@ -70,10 +70,7 @@ public class UaSlotBase {
     public SlotType getSlotType() {
         return slotType;
     }
-    public void setClient(OpcUaClient client) {
-        this.client = client;
-    }
-    public OpcUaClient getClient() {
-        return client;
+    public OpcUaClientProvider getOpcUaClientProvider() {
+        return opcUaClientProvider;
     }
 }

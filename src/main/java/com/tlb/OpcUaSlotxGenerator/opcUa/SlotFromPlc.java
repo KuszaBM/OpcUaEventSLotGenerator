@@ -22,7 +22,6 @@ public class SlotFromPlc implements UaResponseListener {
 
     public SlotFromPlc(UaSlotBase slotBase) {
         this.slotBase = slotBase;
-        System.out.println("new slot from plc");
 //        try {
 //            this.slotNotifier = new UaNotifier(true, this, slotBase, 100);
 //        } catch (ExecutionException | InterruptedException e) {
@@ -75,8 +74,16 @@ public class SlotFromPlc implements UaResponseListener {
 
     private final void writePhsResponseAck() {
         Variant writeValue = new Variant(false);
+        while(!slotBase.getOpcUaClientProvider().isConnected()) {
+            logger.info("Plc not connected 0 slot {} blocked", slotBase.getSlotId());
+            try {
+                Thread.sleep(3000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
         DataValue dataValue = DataValue.valueOnly(writeValue);
-        CompletableFuture<StatusCode> status = slotBase.getClient().writeValue(slotBase.getTokenId(), dataValue);
+        CompletableFuture<StatusCode> status = slotBase.getOpcUaClientProvider().getClient().writeValue(slotBase.getTokenId(), dataValue);
         try {
             logger.info("Send to Opc - {} | Response - {}", writeValue, status.get());
         } catch (InterruptedException | ExecutionException e) {
@@ -96,7 +103,7 @@ public class SlotFromPlc implements UaResponseListener {
 
     private Scheduler plcExecutor; // TODO Provide valid executor
     private Scheduler fluxExecutor; // TODO provide valid executor
-    private UaNotifier slotNotifier;
+    //private UaNotifier slotNotifier;
 
     @Override
     public void onTokenChange() {

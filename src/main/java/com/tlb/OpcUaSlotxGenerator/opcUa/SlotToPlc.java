@@ -31,50 +31,6 @@ public class SlotToPlc implements UaResponseListener {
     }
     public SlotToPlc(UaSlotBase slotBase) {
         this.slotBase = slotBase;
-        this.fluxExecutor = new Scheduler() {
-            @Override
-            public Disposable schedule(Runnable runnable) {
-                runnable.run();
-                return null;
-            }
-
-            @Override
-            public Worker createWorker() {
-                return new Worker() {
-                    @Override
-                    public Disposable schedule(Runnable runnable) {
-                        runnable.run();
-                        return null;
-                    }
-                    @Override
-                    public void dispose() {
-
-                    }
-                };
-            }
-        };
-        this.plcExecutor = new Scheduler() {
-            @Override
-            public Disposable schedule(Runnable runnable) {
-                runnable.run();
-                return null;
-            }
-
-            @Override
-            public Worker createWorker() {
-                return new Worker() {
-                    @Override
-                    public Disposable schedule(Runnable runnable) {
-                        runnable.run();
-                        return null;
-                    }
-                    @Override
-                    public void dispose() {
-
-                    }
-                };
-            }
-        };
     }
 
     // requestWriter.accept(req) is called to write req to PLC, before sendRequestToPlc(), both from PLC thread
@@ -110,7 +66,6 @@ public class SlotToPlc implements UaResponseListener {
 
     @Override
     public void onTokenChange() {
-        System.out.println("jajca 122");
         slot.onTokenChange();
     }
 
@@ -126,7 +81,7 @@ public class SlotToPlc implements UaResponseListener {
 
     @Override
     public boolean getDirection() {
-        return true;
+        return false;
     }
 
     @Override
@@ -158,9 +113,9 @@ public class SlotToPlc implements UaResponseListener {
         private final Supplier<? extends Resp> responseReader;
         private Subscription subscription;
         private Subscription publication;
-        private UaNotifier slotNotifier;
+        //private UaNotifier slotNotifier;
         private boolean isListening;
-        private final boolean direction = true;
+        private final boolean direction = false;
         private Subscriber<? super Resp> subscriber;
         private AtomicBoolean inRequest = new AtomicBoolean(false);
         private AtomicReference<Resp> response = new AtomicReference<>(null);
@@ -203,6 +158,14 @@ public class SlotToPlc implements UaResponseListener {
             if (inRequest.getAndSet(true))
                 throw new IllegalStateException("Too many requests simultaneously in progress");
 
+            while (!slotBase.getOpcUaClientProvider().isConnected()) {
+                System.out.println("PLC NO CON");
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
             plcExecutor.schedule(() -> {
                 requestWriter.accept(request);
                 //sendRequestToPlc();

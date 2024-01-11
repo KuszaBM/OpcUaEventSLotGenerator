@@ -2,11 +2,10 @@ package com.tlb.OpcUaSlotxGenerator;
 
 import com.tlb.OpcUaSlotxGenerator.config.OpcUaConfig;
 import com.tlb.OpcUaSlotxGenerator.demo.process.Process;
-import com.tlb.OpcUaSlotxGenerator.opcUa.OpcSlotsFromPlcActivator;
+import com.tlb.OpcUaSlotxGenerator.opcUa.OpcSlotsActivator;
 import com.tlb.OpcUaSlotxGenerator.opcUa.OpcUaClientProvider;
 import com.tlb.OpcUaSlotxGenerator.opcUa.OpcUaSlotsProvider;
 import com.tlb.OpcUaSlotxGenerator.opcUa.UaNotifierSingle;
-import org.eclipse.milo.opcua.sdk.client.OpcUaClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
@@ -26,32 +25,31 @@ public class OpcUaSlotxGeneratorApplication {
 		Process p = new Process(provider);
 		Thread t = new Thread(p::start);
 		t.setName("w1");
-		logger.info("opp");
-		p.getMainScheduler().schedule(() -> {
-			logger.info("po po");
-		});
+
 		Thread slot = new Thread(providerSlot::startConnection);
 		slot.start();
-
-		OpcSlotsFromPlcActivator slots = new OpcSlotsFromPlcActivator(providerSlot, provider.getUaNotifierSingle());
-
-		Thread pro = new Thread(provider::startConnection);
-		pro.start();
-		while (!provider.isAfterInit()) {
+		while (!providerSlot.isConnected()) {
 			try {
-				System.out.println("jj1");
 				Thread.sleep(500);
 			} catch (InterruptedException e) {
 				throw new RuntimeException(e);
 			}
 		}
-		slots.startingAsk();
-		t.start();
-		System.out.println("x");
-//		Process process = new Process(provider);
-//		Thread t = new Thread(process::start);
-//		t.start();
-		//process.start();
-	}
 
+		OpcSlotsActivator slots = new OpcSlotsActivator(providerSlot, provider.getUaNotifierSingle());
+		Thread pro = new Thread(provider::initialStart, "PLC");
+		pro.start();
+		//provider.initialStart();
+		logger.info("provider done");
+		while (!provider.isAfterInit()) {
+			logger.info("provider not done");
+			try {
+				Thread.sleep(500);
+			} catch (InterruptedException e) {
+				throw new RuntimeException(e);
+			}
+		}
+		t.start();
+		slots.run();
+	}
 }

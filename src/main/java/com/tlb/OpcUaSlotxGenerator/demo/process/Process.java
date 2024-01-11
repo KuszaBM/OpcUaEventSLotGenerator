@@ -24,7 +24,10 @@ import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Scheduled;
 import reactor.core.publisher.Flux;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
 
 import java.sql.SQLException;
 import java.time.Duration;
@@ -46,6 +49,7 @@ public class Process {
     private InThreadScheduler plcScheduler;
     private OpcUaSlotsProvider slotsProvider;
     Logger logger = LoggerFactory.getLogger(Process.class);
+    private int ci = 0;
     short arg = 0;
     boolean slotLock = false;
     private final AtomicLong clientHandles = new AtomicLong(1L);
@@ -60,13 +64,13 @@ public class Process {
         this.plcScheduler = slotsProvider.getScheduler();
     }
 
-    public void readSlots() {
-        try {
-            logger.info("new slot call {}", slotsProvider.getReaderClient().getAddressSpace().getVariableNode(new NodeId(3, "\"PHS_OPC_COMM\".\"TEST_STRING\"")).readValue());
-        } catch (UaException e) {
-            throw new RuntimeException(e);
-        }
-    }
+//    public void readSlots() {
+//        try {
+//            logger.info("new slot call {}", slotsProvider.getReaderClient().getAddressSpace().getVariableNode(new NodeId(3, "\"PHS_OPC_COMM\".\"TEST_STRING\"")).readValue());
+//        } catch (UaException e) {
+//            throw new RuntimeException(e);
+//        }
+//    }
 
 
     public void start() {
@@ -84,7 +88,7 @@ public class Process {
 //                }
 //                logger.info("jjj aaa lll");
 //            });
-            for (int i = 1; i < 4; i++) {
+            for (int i = 1; i < 21; i++) {
                 SlotFromPlc slot = new SlotFromPlc(this.slotsProvider.getSlotToAdd().get(i));
                 slot.setUaNotifierSingle(slotsProvider.getUaNotifierSingle());
                 Publisher<DecisionReq> p = slot.makePublisher(new OpcUaReader<>(DecisionReq.class, slotsProvider.getSlotToAdd().get(i)), plcScheduler);
@@ -101,56 +105,77 @@ public class Process {
                 }).subscribe();
 
             }
-            SlotToPlc slot21 = new SlotToPlc(slotsProvider.getSlotToAdd().get(21));
-            slot21.setUaNotifierSingle(slotsProvider.getUaNotifierSingle());
-            Processor<ToPlcResp, ToPlcReq> processor21 = slot21.makeProcessor(ToPlcResp.class, ToPlcReq.class, plcScheduler, mainScheduler);
+            slotsProvider.getUaNotifierSingle().setInit(true);
 
-            SlotToPlc slot22 = new SlotToPlc(slotsProvider.getSlotToAdd().get(22));
-            slot22.setUaNotifierSingle(slotsProvider.getUaNotifierSingle());
-            Processor<ToPlcResp, ToPlcReq> processor22 = slot22.makeProcessor(ToPlcResp.class, ToPlcReq.class, plcScheduler, mainScheduler);
-            SlotToPlc slot23 = new SlotToPlc(slotsProvider.getSlotToAdd().get(23));
-            slot23.setUaNotifierSingle(slotsProvider.getUaNotifierSingle());
-            Processor<ToPlcResp, ToPlcReq> processor23 = slot23.makeProcessor(ToPlcResp.class, ToPlcReq.class, plcScheduler, mainScheduler);
 
-            Flux.interval(Duration.ofMillis(420)).onBackpressureDrop().map((z) -> {return new ToPlcResp(z.shortValue());}).doOnNext((s) -> {
-                logger.info("new req to 21");
-            }).subscribe(processor21);
-            Flux.from(processor21).doOnNext((s) -> {
-                logger.info("new resp from 21");
-            }).subscribe();
 
-                Flux.interval(Duration.ofMillis(400)).onBackpressureDrop().map((z) -> {return new ToPlcResp(z.shortValue());}).doOnNext((s) -> {
-                logger.info("new req to 22");
-            }).subscribe(processor22);
-            Flux.from(processor22).doOnNext((s) -> {
-                logger.info("new resp from 22 - {}", s);
-            }).subscribe();
-
-            Flux.interval(Duration.ofMillis(430)).onBackpressureDrop().map((z) -> {return new ToPlcResp(z.shortValue());}).doOnNext((s) -> {
-                logger.info("new req to 23");
-            }).subscribe(processor23);
-            Flux.from(processor23).doOnNext((s) -> {
-                logger.info("new resp from 23 - {}", s);
-            }).subscribe();
-
-//            Flux<Integer> a = Flux.fromArray(new Integer[]{1}).delayElements(Duration.ofMillis(1000));
-//            a.doOnNext((z) -> {
+            for (int i = 21; i < 31; i++) {
+                this.ci = i;
+                SlotToPlc slot = new SlotToPlc(slotsProvider.getSlotToAdd().get(i));
+                slot.setUaNotifierSingle(slotsProvider.getUaNotifierSingle());
+                Processor<ToPlcResp, ToPlcReq> processor = slot.makeProcessor(ToPlcResp.class, ToPlcReq.class, plcScheduler, mainScheduler);
+                Flux.interval(Duration.ofMillis(10000 + (i-20)*500)).onBackpressureDrop().map((z) -> {return new ToPlcResp(z.shortValue(), ci);}).doOnNext((s) -> {
+                    logger.info("new req to {}", s.getSourceSlot());
+                }).subscribe(processor);
+                Flux.from(processor).doOnNext((s) -> {
+                    logger.info("new resp from ");
+                }).subscribe();
+            }
+//            SlotToPlc slot21 = new SlotToPlc(slotsProvider.getSlotToAdd().get(21));
+//            slot21.setUaNotifierSingle(slotsProvider.getUaNotifierSingle());
+//            Processor<ToPlcResp, ToPlcReq> processor21 = slot21.makeProcessor(ToPlcResp.class, ToPlcReq.class, plcScheduler, mainScheduler);
+//            Flux.interval(Duration.ofMillis(420)).onBackpressureDrop().map((z) -> {return new ToPlcResp(z.shortValue());}).doOnNext((s) -> {
+//                logger.info("new req to 21");
+//            }).subscribe(processor21);
+//            Flux.from(processor21).doOnNext((s) -> {
+//                logger.info("new resp from 21");
+//            }).subscribe();
+//
+//
+//
+//            SlotToPlc slot22 = new SlotToPlc(slotsProvider.getSlotToAdd().get(22));
+//            slot22.setUaNotifierSingle(slotsProvider.getUaNotifierSingle());
+//            Processor<ToPlcResp, ToPlcReq> processor22 = slot22.makeProcessor(ToPlcResp.class, ToPlcReq.class, plcScheduler, mainScheduler);
+//            SlotToPlc slot23 = new SlotToPlc(slotsProvider.getSlotToAdd().get(23));
+//            slot23.setUaNotifierSingle(slotsProvider.getUaNotifierSingle());
+//            Processor<ToPlcResp, ToPlcReq> processor23 = slot23.makeProcessor(ToPlcResp.class, ToPlcReq.class, plcScheduler, mainScheduler);
+//
+//            Flux.interval(Duration.ofMillis(420)).onBackpressureDrop().map((z) -> {return new ToPlcResp(z.shortValue());}).doOnNext((s) -> {
+//                logger.info("new req to 21");
+//            }).subscribe(processor21);
+//            Flux.from(processor21).doOnNext((s) -> {
+//                logger.info("new resp from 21");
+//            }).subscribe();
+//
+//                Flux.interval(Duration.ofMillis(400)).onBackpressureDrop().map((z) -> {return new ToPlcResp(z.shortValue());}).doOnNext((s) -> {
+//                logger.info("new req to 22");
+//            }).subscribe(processor22);
+//            Flux.from(processor22).doOnNext((s) -> {
+//                logger.info("new resp from 22 - {}", s);
+//            }).subscribe();
+//
+//            Flux.interval(Duration.ofMillis(430)).onBackpressureDrop().map((z) -> {return new ToPlcResp(z.shortValue());}).doOnNext((s) -> {
+//                logger.info("new req to 23");
+//            }).subscribe(processor23);
+//            Flux.from(processor23).doOnNext((s) -> {
+//                logger.info("new resp from 23 - {}", s);
+//            }).subscribe();
+//
+//
+//            Flux<Long> a = Flux.interval(Duration.ofMillis(1000));
+//            a.publishOn(mainScheduler).doOnNext((z) -> {
 //                try {
-//                    Thread.sleep(1000);
+//                    Thread.sleep(500);
 //                } catch (InterruptedException e) {
 //                    throw new RuntimeException(e);
 //                }
-//                logger.info("dupcia - {}", z);
-//            }).subscribeOn(mainScheduler).subscribe();
-//            Flux<Integer> a1 = Flux.fromArray(new Integer[]{1}).delayElements(Duration.ofMillis(1100));
-//            a1.doOnNext((z) -> {
-//                logger.info("dupcia2 - {}", z);
-//            }).subscribeOn(mainScheduler).subscribe();
-//
-//            mainScheduler.schedule(() -> {
-//
-//                logger.info("jjj aaa lll 1");
-//            });
+//                logger.info("dupcia - {}", Thread.currentThread().getName());
+//            }).subscribe();
+//            Flux<Long> a1 = Flux.interval(Duration.ofMillis(1100));
+//            a1.publishOn(mainScheduler).doOnNext((z) -> {
+//                logger.info("dupcia2 - {}",Thread.currentThread().getName());
+//            }).subscribe();
+
             mainScheduler.run();
 
         } catch (Exception e) {

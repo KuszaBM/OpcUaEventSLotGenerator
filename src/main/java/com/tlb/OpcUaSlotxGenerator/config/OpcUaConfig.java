@@ -15,25 +15,25 @@ public class OpcUaConfig {
         return new UaNotifierSingle();
     }
     @Bean
+    public OpcUaClientProvider opcUaClientProvider() {
+        OpcUaClientProvider clientProvider = new  OpcUaClientProvider("opc.tcp://192.168.19.121:4840", "PHS_OPC_COMM", 3);
+        return clientProvider;
+    }
+    @Bean
     public OpcUaSlotsProvider opcUaSlotsProvider() {
         //OpcUaSlotsProvider provider = new OpcUaSlotsProvider("opc.tcp://127.0.0.1:4850/freeopcua/server/", "na", 1);
         OpcUaSlotsProvider provider =
                 new
                         OpcUaSlotsProvider(
-                        "opc.tcp://192.168.19.209:4840"
+                        "opc.tcp://192.168.19.121:4840"
                         ,
                         "PHS_OPC_COMM"
                         ,
-                        3);
+                        3, opcUaClientProvider());
         UaNotifierSingle u = uaNotifierSingle();
-        u.setClient(provider.getClient());
         provider.setUaNotifierSingle(u);
 
         return provider;
     }
-    @Bean
-    public OpcUaClientProvider opcUaClientProvider() {
-       OpcUaClientProvider clientProvider = new  OpcUaClientProvider("opc.tcp://192.168.19.209:4840", "PHS_OPC_COMM", 3);
-       return clientProvider;
-    }
+
 }
