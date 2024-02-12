@@ -1,9 +1,9 @@
 package com.tlb.OpcUaSlotxGenerator.opcUa;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tlb.OpcUaSlotxGenerator.schedulers.InThreadScheduler;
-import org.eclipse.milo.opcua.stack.core.types.builtin.DataValue;
 import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId;
-import org.eclipse.milo.opcua.stack.core.types.builtin.StatusCode;
 import org.eclipse.milo.opcua.stack.core.types.builtin.Variant;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
@@ -12,8 +12,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.scheduler.Scheduler;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -22,21 +20,12 @@ public class SlotFromPlc implements UaResponseListener {
 
     public SlotFromPlc(UaSlotBase slotBase) {
         this.slotBase = slotBase;
-//        try {
-//            this.slotNotifier = new UaNotifier(true, this, slotBase, 100);
-//        } catch (ExecutionException | InterruptedException e) {
-//            throw new RuntimeException(e);
-//        }
-        // TODO Auto-generated constructor stub
     }
 
     public <Req> Publisher<Req> makePublisher(Supplier<? extends Req> requestReader, InThreadScheduler plcExecutor) {
         if (this.reader != null)
             throw new IllegalStateException("makePublisher already called");
-//        if(slotNotifier == null)
-//            throw new IllegalStateException("UaNotifier must not ne null");
-         this.plcExecutor = plcExecutor;
-//        slotNotifier.startListen();
+        this.plcExecutor = plcExecutor;
         isListening = true;
         SlotReader<Req> publisher = new SlotReader<>(requestReader);
         this.reader = publisher;
@@ -52,9 +41,18 @@ public class SlotFromPlc implements UaResponseListener {
         return subscriber;
     }
 
-    public Subscriber<Void> makeAckOnlySubscriber() {
+    public Subscriber<Void> makeAckOnlySubscriber1() {
         if (this.subscriber != null)
             throw new IllegalStateException("makeSubscriber or makeAckOnlySubscriber or makeAutoAck already called");
+        this.fluxExecutor = fluxExecutor;
+        SubscribingSlotResponder<Void> subscriber = new SubscribingSlotResponder<>(null);
+        this.subscriber = subscriber;
+        return subscriber;
+    }
+    public Subscriber<Void> makeAckOnlySubscriber(InThreadScheduler fluxExecutor) {
+        if (this.subscriber != null)
+            throw new IllegalStateException("makeSubscriber or makeAckOnlySubscriber or makeAutoAck already called");
+        this.fluxExecutor = fluxExecutor;
         SubscribingSlotResponder<Void> subscriber = new SubscribingSlotResponder<>(null);
         this.subscriber = subscriber;
         return subscriber;
@@ -73,25 +71,27 @@ public class SlotFromPlc implements UaResponseListener {
     }
 
     private final void writePhsResponseAck() {
+        slotBase.getSlotGuiData().setDone();
+        slotBase.getSlotGuiData().propagateChange();
         Variant writeValue = new Variant(false);
         while(!slotBase.getOpcUaClientProvider().isConnected()) {
-            logger.info("Plc not connected 0 slot {} blocked", slotBase.getSlotId());
+            logger.info("Plc not connected : slot {} blocked", slotBase.getSlotId());
             try {
                 Thread.sleep(3000);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
         }
-        DataValue dataValue = DataValue.valueOnly(writeValue);
-        CompletableFuture<StatusCode> status = slotBase.getOpcUaClientProvider().getClient().writeValue(slotBase.getTokenId(), dataValue);
-        try {
-            logger.info("Send to Opc - {} | Response - {}", writeValue, status.get());
-        } catch (InterruptedException | ExecutionException e) {
-            throw new RuntimeException(e);
-        }
-       // slotNotifier.setReadyForRequest();
-        this.isListening = true;
-        logger.info("Finished write to Opc");
+//        DataValue dataValue = DataValue.valueOnly(writeValue);
+//        CompletableFuture<StatusCode> status = slotBase.getOpcUaClientProvider().getClient().writeValue(slotBase.getTokenId(), dataValue);
+//        try {
+//            logger.info("Send to Opc - {} | Response - {}", writeValue, status.get());
+//        } catch (InterruptedException | ExecutionException e) {
+//            throw new RuntimeException(e);
+//        }
+//       // slotNotifier.setReadyForRequest();
+//        this.isListening = true;
+//        logger.info("Finished write to Opc");
     }
     Logger logger = LoggerFactory.getLogger(SlotFromPlc.class);
     private ReaderBase reader;
@@ -101,9 +101,8 @@ public class SlotFromPlc implements UaResponseListener {
     private boolean isListening;
     private final boolean direction = true;
 
-    private Scheduler plcExecutor; // TODO Provide valid executor
-    private Scheduler fluxExecutor; // TODO provide valid executor
-    //private UaNotifier slotNotifier;
+    private Scheduler plcExecutor;
+    private Scheduler fluxExecutor;
 
     @Override
     public void onTokenChange() {
@@ -200,12 +199,19 @@ public class SlotFromPlc implements UaResponseListener {
         }
 
         private final synchronized void proceedFluxRequests() {
+            ObjectMapper mapper = new ObjectMapper();
             if (requestsCount > 0) {
                 Req req = request.getAndSet(null);
                 if (req != null) {
                     if (requestsCount < Long.MAX_VALUE)
                         requestsCount--;
                     SlotFromPlc.this.subscriber.requestedPhsResponse();
+                    try {
+                        slotBase.getSlotGuiData().newRequest(new SlotRequest(1,mapper.writeValueAsString(req)));
+                        slotBase.getSlotGuiData().propagateChange();
+                    } catch (JsonProcessingException e) {
+                        throw new RuntimeException(e);
+                    }
                     subscriber.onNext(req);
                 }
             }
@@ -235,6 +241,8 @@ public class SlotFromPlc implements UaResponseListener {
             if (this.subscription != null)
                 this.subscription.cancel();
             this.subscription = subscription;
+            //TODO zrobić tak żeby kuba nie płakał
+            subscription.request(1);
         }
 
         @Override

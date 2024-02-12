@@ -1,26 +1,34 @@
 package com.tlb.OpcUaSlotxGenerator.opcUa;
 
 import com.tlb.OpcUaSlotxGenerator.schedulers.InThreadScheduler;
-import org.eclipse.milo.opcua.sdk.client.OpcUaClient;
 import org.eclipse.milo.opcua.sdk.client.nodes.UaNode;
 import org.eclipse.milo.opcua.stack.core.UaException;
 import org.eclipse.milo.opcua.stack.core.types.builtin.DataValue;
 import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId;
-import org.eclipse.milo.opcua.stack.core.types.builtin.StatusCode;
-import org.eclipse.milo.opcua.stack.core.types.builtin.Variant;
 import org.eclipse.milo.opcua.stack.core.types.builtin.unsigned.UByte;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 public class OpcUaSlotsProvider {
+    private WebClient webClient;
+
+    public void setWebClient(WebClient webClient) {
+        this.webClient = webClient;
+        this.propagator = new SLotGuiPropagator(webClient);
+    }
+
+    public SLotGuiPropagator getPropagator() {
+        return propagator;
+    }
+    private static OpcUaSlotsProvider instance;
     private Map<Integer, UaSlotBase> slotToAdd;
+    private SLotGuiPropagator propagator;
     private Map<Integer, SlotToPlc> slotsToPLc;
     private OpcUaClientProvider opcUaClientProvider;
     private boolean afterInit;
@@ -28,18 +36,9 @@ public class OpcUaSlotsProvider {
     private String address;
     private String opcUaName;
     private int nameSpace;
-    //private OpcUaClient readerClient;
     private final InThreadScheduler scheduler;
-    //private OpcUaClient client;
     Logger logger = LoggerFactory.getLogger(OpcUaSlotsProvider.class);
-    private List<UaSlotBase> slots;
-    private String opcAddress;
-
-//    public OpcUaClient getReaderClient() {
-//        return readerClient;
-//    }
-
-    public OpcUaSlotsProvider(String address, String opcUaName, int nameSpace, OpcUaClientProvider opcUaClientProvider) {
+    private OpcUaSlotsProvider(String address, String opcUaName, int nameSpace, OpcUaClientProvider opcUaClientProvider) {
         this.address = address;
         this.opcUaName = opcUaName;
         this.nameSpace = nameSpace;
@@ -47,38 +46,13 @@ public class OpcUaSlotsProvider {
         this.slotToAdd = new HashMap<>();
         this.afterInit = false;
         this.scheduler = new InThreadScheduler("Plc");
-        this.slots = new ArrayList<>();
-        logger.info("jkaj");
     }
-//    public void reconnect() {
-//        logger.info("Trying to reconnect to OPC");
-//        try {
-//            this.client = OpcUaClient.create(address);
-//            this.client.connect().get();
-//        } catch (UaException | InterruptedException | ExecutionException e) {
-//            throw new RuntimeException(e);
-//        }
-//    }
-//    public void startConnection() {
-//        logger.info("Trying to establish connection to OPCUA server");
-//        try {
-//            this.client.connect().get();
-//            this.readerClient.connect().get();
-//            logger.warn("OPCUA connection established");
-//            readServer();
-//            afterInit = true;
-//            scheduler.run();
-//        } catch (Exception e) {
-//            logger.info("OPC UA - DC", e);
-//
-//            try {
-//                Thread.sleep(5000);
-//            } catch (InterruptedException ex) {
-//                throw new RuntimeException(ex);
-//            }
-//            startConnection();
-//        }
-//    }
+    public static OpcUaSlotsProvider getInstance(String address, String opcUaName, int nameSpace, OpcUaClientProvider opcUaClientProvider) {
+        if (instance == null) {
+            instance = new OpcUaSlotsProvider(address, opcUaName, nameSpace, opcUaClientProvider);
+        }
+        return instance;
+    }
     public void initialStart() {
         try {
             readServer();
@@ -86,45 +60,21 @@ public class OpcUaSlotsProvider {
             throw new RuntimeException(e);
         }
         afterInit = true;
+        propagateALlSlots2();
         scheduler.run();
     }
 
-//    private void startHb(NodeId hbToken) {
-//        Thread hb = new Thread(() -> {
-//            boolean b;
-//            while (true) {
-//                try {
-//                    b = (Boolean) opcUaClientProvider.getClient().getAddressSpace().getVariableNode(hbToken).readValue().getValue().getValue();
-//                } catch (UaException e) {
-//                    throw new RuntimeException(e);
-//                }
-//                try {
-//                    Thread.sleep(200);
-//                } catch (InterruptedException e) {
-//                    throw new RuntimeException(e);
-//                }
-//                if (b) {
-//                    Variant writeValue = new Variant(false);
-//                    DataValue dataValue = DataValue.valueOnly(writeValue);
-//                    CompletableFuture<StatusCode> status = client.writeValue(hbToken, dataValue);
-//                    try {
-//                        if(status.get().isBad()) {
-//                            logger.info("OPC beep bad");
-//                        }
-//                    } catch (InterruptedException | ExecutionException e) {
-//                        throw new RuntimeException(e);
-//                    }
-//
-//                }
-//            }
-//        });
-//        logger.info("Starting heartbeat Thread");
-//        hb.start();
-//    }
+    public void propagateALlSlots2() {
+        List<SlotGuiData> guiData = new ArrayList<>();
+        for (UaSlotBase base : slotToAdd.values()) {
+            guiData.add(base.getSlotGuiData());
+        }
+        propagator.propagateALlSlots(guiData);
+    }
+
     public void nodeShowUp(UaNode cN) {
         logger.info("--------------------------------");
         logger.info("{} | {}", cN.getDisplayName().getText(), cN.getNodeId());
-
         String nodeName = cN.getDisplayName().getText();
         if(nodeName == null)
             return;
@@ -133,19 +83,14 @@ public class OpcUaSlotsProvider {
             for(int i = 0; i < afterSplit.length; i++ ) {
                 if(afterSplit[i].equals("TOKEN")) {
                     int z = Integer.parseInt(afterSplit[i-1]);
-
                     if(z == 0) {
-                        slotToAdd.put(z, new UaSlotBase(z, SlotType.ToPlc, cN.getNodeId(), nameSpace, opcUaName, opcUaClientProvider));
-                        //startHb(cN.getNodeId());
-
+                        slotToAdd.put(z, new UaSlotBase(z, SlotType.ToPlc, cN.getNodeId(), nameSpace, opcUaName, opcUaClientProvider, propagator));
                     } else {
                         SlotType slotType = afterSplit[i+1].equals("IN") ? SlotType.ToPlc : SlotType.FromPlc;
-                        slotToAdd.put(z, new UaSlotBase(z, slotType, cN.getNodeId(), nameSpace, opcUaName, opcUaClientProvider));
+                        slotToAdd.put(z, new UaSlotBase(z, slotType, cN.getNodeId(), nameSpace, opcUaName, opcUaClientProvider, propagator));
                     }
-
                 }
             }
-
         }
         if(cN.getNodeClass().getValue() == 2) {
             try {
@@ -186,10 +131,7 @@ public class OpcUaSlotsProvider {
                 slotsToPLc.put(e.getKey(), new SlotToPlc(e.getValue()));
             }
         }
-        logger.info("13 - 13 - 13 - 13");
     }
-
-
     public Map<Integer, UaSlotBase> getSlotToAdd() {
         return slotToAdd;
     }

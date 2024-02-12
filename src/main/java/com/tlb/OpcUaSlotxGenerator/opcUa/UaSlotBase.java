@@ -1,15 +1,22 @@
 package com.tlb.OpcUaSlotxGenerator.opcUa;
 
-import org.eclipse.milo.opcua.sdk.client.OpcUaClient;
 import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
+
 public class UaSlotBase {
+    public SlotGuiData getSlotGuiData() {
+        return slotGuiData;
+    }
+
     private int slotId = -1;
+    private List<String> requests;
     private NodeId tokenId;
     private SlotType slotType;
     private OpcUaClientProvider opcUaClientProvider;
+    private SlotGuiData slotGuiData;
     private int slotNo;
     private String slotName;
     private String opcUaName;
@@ -27,7 +34,7 @@ public class UaSlotBase {
         this.tokenId = new NodeId(nameSpace, s + s2);
         logger.info("New slot created, slot name - {} | nodeId = {}", slotName, tokenId);
     }
-    public UaSlotBase(int slotId, SlotType type, NodeId tokenNodeId, int nameSpace, String opcUaName, OpcUaClientProvider clientProvider) {
+    public UaSlotBase(int slotId, SlotType type, NodeId tokenNodeId, int nameSpace, String opcUaName, OpcUaClientProvider clientProvider, SLotGuiPropagator propagator) {
         this.opcUaClientProvider = clientProvider;
         this.slotId = slotId;
         this.slotType = type;
@@ -35,7 +42,9 @@ public class UaSlotBase {
         this.opcUaName = opcUaName;
         this.namespace = nameSpace;
         this.slotName = "SLOT_" + slotId;
+        this.slotGuiData = new SlotGuiData(slotId, SlotType.ToPlc.equals(type) ? "IN" : "OUT", propagator);
     }
+
     //Getters & Setters
 
     public int getSlotNo() {

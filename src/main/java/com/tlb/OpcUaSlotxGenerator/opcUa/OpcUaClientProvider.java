@@ -6,9 +6,8 @@ import org.eclipse.milo.opcua.stack.core.UaException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.ExecutionException;
-
 public class OpcUaClientProvider {
+    private static OpcUaClientProvider instance;
     private OpcUaClient client;
     private OpcUaClient activatorClient;
     private UaClient c1;
@@ -20,42 +19,42 @@ public class OpcUaClientProvider {
     private int nameSpace;
     Logger logger = LoggerFactory.getLogger(OpcUaClientProvider.class);
 
-    public OpcUaClientProvider(String address, String opcUaName, int nameSpace) {
+    private OpcUaClientProvider(String address, String opcUaName, int nameSpace) {
         this.address = address;
         this.opcUaName = opcUaName;
         this.nameSpace = nameSpace;
         this.isConnected = false;
     }
+    public static OpcUaClientProvider getInstance(String address, String opcUaName, int nameSpace) {
+        if (instance == null) {
+            instance = new OpcUaClientProvider(address, opcUaName, nameSpace);
+        }
+        return instance;
+    }
     public void closeConnections() {
         isConnected = false;
         try {
-            logger.info("jajko");
             c1.disconnect().get();
-            logger.info("jaca");
-            logger.info("jacychy 18");
         } catch (Exception e) {
-            logger.info("ded - ", 3);
+            logger.info("ded - ", e);
         }
-        logger.info("DC DC DC DC DC 111");
     }
 
     public void startConnection() {
-        logger.info("starting new connection");
+        logger.info("Starting new connection");
         if(con != null) {
-            logger.info("jajcarze 14");
             try {
-                Thread.sleep(5000);
+                Thread.sleep(3000);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
-            logger.info("jajcarze 141");
         }
         Thread t = new Thread(() -> {
             if (isConnected) {
                 logger.warn("Phs already connected to: {}", address);
                 return;
             }
-            logger.info("Trying to connect to {}", address);
+            logger.info("Trying to connect to {}...", address);
             try {
                 this.client = OpcUaClient.create(address);
                 this.activatorClient = OpcUaClient.create(address);

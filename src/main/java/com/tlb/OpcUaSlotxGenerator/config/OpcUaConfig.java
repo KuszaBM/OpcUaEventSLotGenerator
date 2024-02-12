@@ -12,19 +12,18 @@ public class OpcUaConfig {
 
     @Bean
     public UaNotifierSingle uaNotifierSingle() {
-        return new UaNotifierSingle();
+        return UaNotifierSingle.getInstance();
     }
     @Bean
     public OpcUaClientProvider opcUaClientProvider() {
-        OpcUaClientProvider clientProvider = new  OpcUaClientProvider("opc.tcp://192.168.19.121:4840", "PHS_OPC_COMM", 3);
+        OpcUaClientProvider clientProvider = OpcUaClientProvider.getInstance("opc.tcp://192.168.19.121:4840", "PHS_OPC_COMM", 3);
         return clientProvider;
     }
     @Bean
     public OpcUaSlotsProvider opcUaSlotsProvider() {
-        //OpcUaSlotsProvider provider = new OpcUaSlotsProvider("opc.tcp://127.0.0.1:4850/freeopcua/server/", "na", 1);
         OpcUaSlotsProvider provider =
-                new
-                        OpcUaSlotsProvider(
+
+                        OpcUaSlotsProvider.getInstance(
                         "opc.tcp://192.168.19.121:4840"
                         ,
                         "PHS_OPC_COMM"

@@ -14,39 +14,6 @@ import java.util.function.Supplier;
 public class OpcUaReader<T> implements Supplier<T> {
     private NodeId tokenId;
     private T item;
-//    public OpcUaReader(Class<T> cls, String slotName, String opcName, int uaNamespaceId) {
-//        tokenId = new NodeId(uaNamespaceId, "\"" + opcName + "\"." + "\"" + slotName + "_" + "TOKEN_IN" +  "\"");
-//
-//        Constructor<?> foundCtor = null;
-//        for(Constructor<?> ctor : cls.getDeclaredConstructors()) {
-//            if (ctor.getAnnotation(OpcUaConstructor.class) == null) continue;
-//            if (foundCtor != null)
-//                throw new IllegalArgumentException("OpcUaConstructor declared twice");
-//            foundCtor = ctor;
-//        }
-//        if (foundCtor == null)
-//            throw new IllegalArgumentException(cls.getName() + " without OpcUaConstructor");
-//        constructor = foundCtor;
-//        Parameter[] params = foundCtor.getParameters();
-//        paramReaders = new Supplier[params.length];
-//        for (int idx = 0; idx < params.length; ++idx) {
-//            Parameter p = params[idx];
-//            OpcUaNode a = p.getAnnotation(OpcUaNode.class);
-//            if (a == null)
-//                throw new IllegalArgumentException("Not all constructor parameters have been annotated");
-//            if(a.name().isEmpty())
-//                throw new IllegalArgumentException("Name for all constructor parameters need to be defined");
-//            paramReaders[idx] = () -> {
-//                try {
-//                    NodeId dataNode = new NodeId(uaNamespaceId, "\"" + opcName + "\"." + "\"" + a.name() + "_" + slotName +  "\"");
-//                    return slotBase.getOpcUaClientProvider().getClient().getAddressSpace().getVariableNode(dataNode).readValue().getValue().getValue();
-//                } catch (UaException e) {
-//                    throw new RuntimeException(e);
-//                }
-//                //TODO odczyt
-//            };
-//        }
-//    }
 
     public OpcUaReader(Class<T> cls, UaSlotBase slotBase) {
         tokenId = slotBase.getTokenId();

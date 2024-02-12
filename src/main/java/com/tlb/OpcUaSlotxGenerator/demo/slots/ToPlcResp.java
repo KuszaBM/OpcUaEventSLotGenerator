@@ -3,16 +3,18 @@ package com.tlb.OpcUaSlotxGenerator.demo.slots;
 import com.tlb.OpcUaSlotxGenerator.opcUa.annnotations.OpcUaNode;
 
 public class ToPlcResp {
-    @OpcUaNode(name = "X_TID_DATA")
+    @OpcUaNode(name = "TID_DATA")
     short trackId;
-    int sourceSlot;
 
-    public int getSourceSlot() {
-        return sourceSlot;
+    public ToPlcResp(short trackId) {
+        this.trackId = trackId;
     }
 
-    public ToPlcResp(short trackId, int sourceSlot) {
+    public short getTrackId() {
+        return trackId;
+    }
+
+    public void setTrackId(short trackId) {
         this.trackId = trackId;
-        this.sourceSlot = sourceSlot;
     }
 }

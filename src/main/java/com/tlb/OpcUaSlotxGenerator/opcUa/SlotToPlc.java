@@ -1,14 +1,14 @@
 package com.tlb.OpcUaSlotxGenerator.opcUa;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tlb.OpcUaSlotxGenerator.schedulers.InThreadScheduler;
 import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId;
 import org.reactivestreams.Processor;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
-import reactor.core.Disposable;
 import reactor.core.scheduler.Scheduler;
 
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -18,9 +18,8 @@ import java.util.function.Supplier;
 public class SlotToPlc implements UaResponseListener {
     private UaSlotBase slotBase;
     private UaResponseListener slot;
-    private Scheduler plcExecutor; // TODO Provide valid executor
-    private Scheduler fluxExecutor; // TODO provide valid executor
-
+    private Scheduler plcExecutor;
+    private Scheduler fluxExecutor;
     private UaNotifierSingle uaNotifierSingle;
     public UaSlotBase getSlotBase() {
         return slotBase;
@@ -130,13 +129,9 @@ public class SlotToPlc implements UaResponseListener {
 //            }
         }
         private final void sendRequestToPlc() {
-            //version for many notifiers
-            //slotNotifier.startListen();
-
 
             uaNotifierSingle.startListeningOnSLot(this);
 
-            // TODO Wrrite this
         }
         @Override
         public void onSubscribe(Subscription s) {
@@ -159,16 +154,21 @@ public class SlotToPlc implements UaResponseListener {
                 throw new IllegalStateException("Too many requests simultaneously in progress");
 
             while (!slotBase.getOpcUaClientProvider().isConnected()) {
-                System.out.println("PLC NO CON");
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }
             }
+            ObjectMapper mapper = new ObjectMapper();
+            try {
+                slotBase.getSlotGuiData().newRequest(new SlotRequest(1, mapper.writeValueAsString(request)));
+                slotBase.getSlotGuiData().propagateChange();
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
+            }
             plcExecutor.schedule(() -> {
                 requestWriter.accept(request);
-                //sendRequestToPlc();
             });
         }
 
@@ -177,6 +177,8 @@ public class SlotToPlc implements UaResponseListener {
             Resp resp = responseReader.get();
             if (! response.compareAndSet(null, resp))
                 throw new IllegalStateException("New response from PLC but previous one has not been handled");
+            slotBase.getSlotGuiData().setDone();
+            slotBase.getSlotGuiData().propagateChange();
             fluxExecutor.schedule(this::proceedFluxSubscription);
         }
 

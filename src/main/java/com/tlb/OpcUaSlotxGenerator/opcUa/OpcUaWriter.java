@@ -22,36 +22,6 @@ public class OpcUaWriter <T> implements Consumer<T> {
     private UaSlotBase slotBase;
     Logger logger = LoggerFactory.getLogger(OpcUaWriter.class);
     NodeId tokenId;
-//    public OpcUaWriter(Class<T> cls, String slotName, String opcName, OpcUaClient uaClient, int uaNamespaceId, NodeId tokenId) {
-//        this.tokenId = tokenId;
-//        client = uaClient;
-//        for (Field f : cls.getDeclaredFields()) {
-//            OpcUaNode a = f.getAnnotation(OpcUaNode.class);
-//            if(a == null)
-//                continue;
-//            String s = "\"" + opcName + "\".";
-//            String s2 = a.name().isEmpty() ?
-//                    "\"" + f.getName() + "_" + slotName +  "\"" :
-//                    "\"" + a.name() + "_" + slotName +  "\"";
-//            NodeId node = new NodeId(uaNamespaceId, s + s2);
-//
-//            f.setAccessible(true);
-//            writes.add((t)->{
-//                try {
-//                    Variant writeValue = new Variant(f.get(t));
-//                    DataValue dataValue = DataValue.valueOnly(writeValue);
-//                    logger.info("try to update node - {}", node);
-//                    CompletableFuture<StatusCode> status = client.writeValue(node, dataValue);
-//                    logger.info("Send to Opc - {} | Response - {}", dataValue, status.get());
-//                } catch (IllegalAccessException | InterruptedException | ExecutionException e) {
-//                    throw new RuntimeException(e);
-//                }
-//            });
-//        }
-//        for (Method m : cls.getDeclaredMethods()) {
-//
-//        }
-//    }
 
     public OpcUaWriter(Class<T> cls, UaSlotBase slotBase) {
         this.slotBase = slotBase;
@@ -83,11 +53,6 @@ public class OpcUaWriter <T> implements Consumer<T> {
 
         }
     }
-
-    private void writeToPLc(T t) {
-
-    }
-
     @Override
     public void accept(T t) {
         while (!slotBase.getOpcUaClientProvider().isConnected()) {
@@ -130,7 +95,7 @@ public class OpcUaWriter <T> implements Consumer<T> {
                 }
             }
         }
-        logger.info("Finished write to Opc");
+        logger.info("Finished writers write to Opc");
 
     }
     private final List<Consumer<T>> writes = new ArrayList<>();

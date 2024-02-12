@@ -16,7 +16,6 @@ import java.util.concurrent.CompletionException;
 
 public class OpcSlotsActivator {
     short arg = 2;
-    private boolean inDcMode = false;
     private OpcUaClientProvider clientProvider;
     private UaNotifierSingle uaNotifierSingle;
     Logger logger = LoggerFactory.getLogger(OpcSlotsActivator.class);
@@ -48,8 +47,7 @@ public class OpcSlotsActivator {
                 slotsCall(clientProvider.getActivatorClient(), arg).exceptionally(ex -> {
                     logger.error("error invoking metchodcall()", ex);
                     if (ex instanceof CompletionException) {
-                        logger.info("Error in connection reset");
-                        inDcMode = true;
+                        logger.info("Connection error");
                         clientProvider.closeConnections();
                         logger.info("restarting connection");
                         clientProvider.startConnection();
@@ -73,9 +71,8 @@ public class OpcSlotsActivator {
                     }
                 });
             } else {
-                logger.info("jajeczka 18");
                 while (!clientProvider.isConnected()) {
-                    logger.info("NO call - waiting for connection");
+                    logger.info("No call - waiting for connection");
                     Thread.sleep(1000);
                 }
                 startingAsk();
@@ -99,7 +96,6 @@ public class OpcSlotsActivator {
             if (statusCode.isGood()) {
                 Short[] a = (Short[]) result.getOutputArguments()[1].getValue();
                 logger.info("result - {}", result.getOutputArguments()[1].getValue());
-                inDcMode = false;
                 startingAsk();
                 return CompletableFuture.completedFuture(a);
             } else {
@@ -107,7 +103,6 @@ public class OpcSlotsActivator {
                 for (int i = 0; i < inputArgumentResults.length; i++) {
                     logger.error("inputArgumentResults[{}]={}", i, inputArgumentResults[i]);
                 }
-
                 CompletableFuture<Short[]> f = new CompletableFuture<>();
                 f.completeExceptionally(new UaException(statusCode));
                 return f;
