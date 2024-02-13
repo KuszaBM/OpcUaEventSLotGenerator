@@ -9,9 +9,26 @@ public class SlotGuiData {
     private int id;
     private String direction;
     private boolean isOpen;
+    private String currentData;
     private List<SlotRequest> requestsHistory;
     @JsonIgnore
     private SLotGuiPropagator propagator;
+
+    public SlotGuiData(int id, String direction, boolean isOpen, String currentData, List<SlotRequest> requestsHistory) {
+        this.id = id;
+        this.direction = direction;
+        this.isOpen = isOpen;
+        this.currentData = currentData;
+        this.requestsHistory = requestsHistory;
+    }
+
+    public String getCurrentData() {
+        return currentData;
+    }
+
+    public void setCurrentData(String currentData) {
+        this.currentData = currentData;
+    }
 
     public SlotGuiData(int id, String direction, SLotGuiPropagator propagator) {
         this.id = id;
@@ -35,8 +52,8 @@ public class SlotGuiData {
     }
     public void newRequest(SlotRequest request) {
         this.isOpen = false;
-        if(requestsHistory.size() > 9) {
-            requestsHistory.remove(9);
+        if(requestsHistory.size() > 2) {
+            requestsHistory.remove(2);
         }
         List<SlotRequest> newList = new ArrayList<>();
         newList.add(request);
@@ -49,6 +66,10 @@ public class SlotGuiData {
         this.isOpen = true;
         if (!requestsHistory.isEmpty())
             requestsHistory.get(0).setDone();
+    }
+    public void setResponse(String response) {
+        if (!requestsHistory.isEmpty())
+            requestsHistory.get(0).setResponseData(response);
     }
 
     public int getId() {

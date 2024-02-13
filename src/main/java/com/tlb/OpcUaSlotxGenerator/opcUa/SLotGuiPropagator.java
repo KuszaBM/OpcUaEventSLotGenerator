@@ -1,6 +1,7 @@
 package com.tlb.OpcUaSlotxGenerator.opcUa;
 
 import com.tlb.OpcUaSlotxGenerator.PhsWebsocketMessage;
+import com.tlb.OpcUaSlotxGenerator.websocket.SinksHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -13,30 +14,29 @@ import java.util.List;
 public class SLotGuiPropagator {
     private final WebClient webClient;
     Logger log = LoggerFactory.getLogger(SLotGuiPropagator.class);
+    private final SinksHolder sinksHolder;
 
-    public SLotGuiPropagator(WebClient webClient) {
+    public SLotGuiPropagator(WebClient webClient, SinksHolder sinksHolder) {
         this.webClient = webClient;
+        this.sinksHolder = sinksHolder;
     }
     public void propagateSlotChange(SlotGuiData slotGuiData) {
-        for(SlotRequest request : slotGuiData.getRequestsHistory()) {
-            log.info("req - {}", request);
-        }
         PhsWebsocketMessage<?> message = new PhsWebsocketMessage<>("SLOT-UPDATE", slotGuiData);
-        if(message.type.equals("SLOT-UPDATE")) {
-            try {
-                Mono<String> resp = webClient.post()
-                        .uri("http://127.0.0.1:8080/slots/update")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .body(BodyInserters.fromValue(message))
-                        .retrieve()
-                        .bodyToMono(String.class).log().doOnNext((s) -> {
-                            log.info("ooo - {}", s);
-                        });
-                resp.subscribe();
-            } catch (Exception e) {
-                log.info("bad - ", e);
-            }
-        }
+        sinksHolder.sendToAll(message);
+        log.info("propagate update {}", slotGuiData);
+//        if(message.type.equals("SLOT-UPDATE")) {
+//            try {
+//                Mono<String> resp = webClient.post()
+//                        .uri("http://127.0.0.1:8080/slots/update")
+//                        .contentType(MediaType.APPLICATION_JSON)
+//                        .body(BodyInserters.fromValue(message))
+//                        .retrieve()
+//                        .bodyToMono(String.class);
+//                resp.subscribe();
+//            } catch (Exception e) {
+//                log.info("bad - ", e);
+//            }
+//        }
     }
 
     public void propagateALlSlots(List<SlotGuiData> slotGuiData) {
@@ -48,9 +48,7 @@ public class SLotGuiPropagator {
                         .contentType(MediaType.APPLICATION_JSON)
                         .body(BodyInserters.fromValue(message))
                         .retrieve()
-                        .bodyToMono(String.class).log().doOnNext((s) -> {
-                            log.info("ooo - {}", s);
-                        });
+                        .bodyToMono(String.class);
                 resp.subscribe();
             } catch (Exception e) {
                 log.info("bad - ", e);

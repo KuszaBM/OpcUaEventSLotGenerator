@@ -1,6 +1,7 @@
 package com.tlb.OpcUaSlotxGenerator.opcUa;
 
 import com.tlb.OpcUaSlotxGenerator.schedulers.InThreadScheduler;
+import com.tlb.OpcUaSlotxGenerator.websocket.SinksHolder;
 import org.eclipse.milo.opcua.sdk.client.nodes.UaNode;
 import org.eclipse.milo.opcua.stack.core.UaException;
 import org.eclipse.milo.opcua.stack.core.types.builtin.DataValue;
@@ -17,15 +18,13 @@ import java.util.Map;
 
 public class OpcUaSlotsProvider {
     private WebClient webClient;
+    private SinksHolder sinksHolder;
 
-    public void setWebClient(WebClient webClient) {
-        this.webClient = webClient;
-        this.propagator = new SLotGuiPropagator(webClient);
-    }
+    private SlotFromPlc testFromPLC;
 
-    public SLotGuiPropagator getPropagator() {
-        return propagator;
-    }
+    private Map<Integer, SlotFromPlc> slotFromPlcMap;
+    private Map<Integer, SlotToPlc> slotToPlcMap;
+
     private static OpcUaSlotsProvider instance;
     private Map<Integer, UaSlotBase> slotToAdd;
     private SLotGuiPropagator propagator;
@@ -38,20 +37,35 @@ public class OpcUaSlotsProvider {
     private int nameSpace;
     private final InThreadScheduler scheduler;
     Logger logger = LoggerFactory.getLogger(OpcUaSlotsProvider.class);
-    private OpcUaSlotsProvider(String address, String opcUaName, int nameSpace, OpcUaClientProvider opcUaClientProvider) {
+    private OpcUaSlotsProvider(String address, String opcUaName, int nameSpace, OpcUaClientProvider opcUaClientProvider, SinksHolder sinksHolder) {
         this.address = address;
         this.opcUaName = opcUaName;
         this.nameSpace = nameSpace;
+        this.sinksHolder = sinksHolder;
         this.opcUaClientProvider = opcUaClientProvider;
         this.slotToAdd = new HashMap<>();
         this.afterInit = false;
         this.scheduler = new InThreadScheduler("Plc");
+        this.slotFromPlcMap = new HashMap<>();
+        this.slotToPlcMap = new HashMap<>();
     }
-    public static OpcUaSlotsProvider getInstance(String address, String opcUaName, int nameSpace, OpcUaClientProvider opcUaClientProvider) {
+    public static OpcUaSlotsProvider getInstance(String address, String opcUaName, int nameSpace, OpcUaClientProvider opcUaClientProvider, SinksHolder sinksHolder) {
         if (instance == null) {
-            instance = new OpcUaSlotsProvider(address, opcUaName, nameSpace, opcUaClientProvider);
+            instance = new OpcUaSlotsProvider(address, opcUaName, nameSpace, opcUaClientProvider, sinksHolder);
         }
         return instance;
+    }
+    public SlotFromPlc getSlotFromPlc(int slotNo) {
+        return slotFromPlcMap.get(slotNo);
+    }
+    public SlotToPlc getSlotToPlc(int slotNo) {
+        return slotToPlcMap.get(slotNo);
+    }
+    public void addSlotFromPlc(SlotFromPlc slot) {
+        slotFromPlcMap.put(slot.getSlotId(), slot);
+    }
+    public void addSlotToPlc(SlotToPlc slot) {
+        slotToPlcMap.put(slot.getSlotId(), slot);
     }
     public void initialStart() {
         try {
@@ -139,6 +153,18 @@ public class OpcUaSlotsProvider {
     public InThreadScheduler getScheduler() {
         return scheduler;
     }
+    public void setWebClient(WebClient webClient) {
+        this.webClient = webClient;
+        this.propagator = new SLotGuiPropagator(webClient, sinksHolder);
+    }
+
+    public SlotFromPlc getTestFromPLC() {
+        return testFromPLC;
+    }
+
+    public void setTestFromPLC(SlotFromPlc testFromPLC) {
+        this.testFromPLC = testFromPLC;
+    }
 
     public boolean isAfterInit() {
         return afterInit;
@@ -149,6 +175,9 @@ public class OpcUaSlotsProvider {
             ret[i] = ubajtki[i].byteValue();
         }
         return ret;
+    }
+    public SLotGuiPropagator getPropagator() {
+        return propagator;
     }
     public UaNotifierSingle getUaNotifierSingle() {
         return uaNotifierSingle;

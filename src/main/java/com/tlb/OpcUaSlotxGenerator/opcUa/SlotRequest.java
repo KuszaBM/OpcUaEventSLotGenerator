@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 public class SlotRequest {
     private int requestId;
     private String requestData;
+    private String responseData;
     private Long proceedTime;
     @JsonIgnore
     private long start;
@@ -55,11 +56,20 @@ public class SlotRequest {
         this.proceedTime = proceedTime;
     }
 
+    public String getResponseData() {
+        return responseData;
+    }
+
+    public void setResponseData(String responseData) {
+        this.responseData = responseData;
+    }
+
     @Override
     public String toString() {
         return "SlotRequest{" +
                 "requestId=" + requestId +
                 ", requestData='" + requestData + '\'' +
+                ", responseData='" + responseData + '\'' +
                 ", proceedTime=" + proceedTime +
                 '}';
     }

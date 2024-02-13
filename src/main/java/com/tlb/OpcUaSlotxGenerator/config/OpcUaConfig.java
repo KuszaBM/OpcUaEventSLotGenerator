@@ -3,12 +3,17 @@ package com.tlb.OpcUaSlotxGenerator.config;
 import com.tlb.OpcUaSlotxGenerator.opcUa.OpcUaClientProvider;
 import com.tlb.OpcUaSlotxGenerator.opcUa.OpcUaSlotsProvider;
 import com.tlb.OpcUaSlotxGenerator.opcUa.UaNotifierSingle;
+import com.tlb.OpcUaSlotxGenerator.websocket.SinksHolder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 
 @Configuration
 public class OpcUaConfig {
+    @Bean
+    public SinksHolder sinksHolder() {
+        return SinksHolder.getInstance();
+    }
 
     @Bean
     public UaNotifierSingle uaNotifierSingle() {
@@ -22,13 +27,12 @@ public class OpcUaConfig {
     @Bean
     public OpcUaSlotsProvider opcUaSlotsProvider() {
         OpcUaSlotsProvider provider =
-
                         OpcUaSlotsProvider.getInstance(
                         "opc.tcp://192.168.19.121:4840"
                         ,
                         "PHS_OPC_COMM"
                         ,
-                        3, opcUaClientProvider());
+                        3, opcUaClientProvider(), sinksHolder());
         UaNotifierSingle u = uaNotifierSingle();
         provider.setUaNotifierSingle(u);
 

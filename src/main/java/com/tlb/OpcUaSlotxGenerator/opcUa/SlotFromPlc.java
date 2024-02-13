@@ -22,12 +22,13 @@ public class SlotFromPlc implements UaResponseListener {
         this.slotBase = slotBase;
     }
 
-    public <Req> Publisher<Req> makePublisher(Supplier<? extends Req> requestReader, InThreadScheduler plcExecutor) {
+    public <Req> Publisher<Req> makePublisher(Supplier<? extends Req> requestReader, InThreadScheduler plcExecutor, Req ref) {
         if (this.reader != null)
             throw new IllegalStateException("makePublisher already called");
         this.plcExecutor = plcExecutor;
         isListening = true;
         SlotReader<Req> publisher = new SlotReader<>(requestReader);
+        publisher.setReqReference(ref);
         this.reader = publisher;
         return publisher;
     }
@@ -82,16 +83,6 @@ public class SlotFromPlc implements UaResponseListener {
                 throw new RuntimeException(e);
             }
         }
-//        DataValue dataValue = DataValue.valueOnly(writeValue);
-//        CompletableFuture<StatusCode> status = slotBase.getOpcUaClientProvider().getClient().writeValue(slotBase.getTokenId(), dataValue);
-//        try {
-//            logger.info("Send to Opc - {} | Response - {}", writeValue, status.get());
-//        } catch (InterruptedException | ExecutionException e) {
-//            throw new RuntimeException(e);
-//        }
-//       // slotNotifier.setReadyForRequest();
-//        this.isListening = true;
-//        logger.info("Finished write to Opc");
     }
     Logger logger = LoggerFactory.getLogger(SlotFromPlc.class);
     private ReaderBase reader;
@@ -114,6 +105,15 @@ public class SlotFromPlc implements UaResponseListener {
         return false;
     }
 
+    @Override
+    public void forceSlotUnlock() {
+    }
+
+    @Override
+    public void forceSlotRequest(Object object) {
+
+    }
+
     public UaNotifierSingle getUaNotifierSingle() {
         return uaNotifierSingle;
     }
@@ -123,6 +123,9 @@ public class SlotFromPlc implements UaResponseListener {
         uaNotifierSingle.addSlotToNotifier(this);
     }
 
+    public void forceReq(Object req) {
+        reader.forceRequest(req);
+    }
     @Override
     public void setListening(boolean listening) {
         this.isListening = listening;
@@ -155,6 +158,8 @@ public class SlotFromPlc implements UaResponseListener {
 
     private interface ReaderBase {
         void onPlcRequest();
+        void forceRequest(Object request);
+
     }
 
     private interface SubscriberBase {
@@ -165,6 +170,15 @@ public class SlotFromPlc implements UaResponseListener {
 
         public SlotReader(Supplier<? extends Req> requestReader) {
             this.requestReader = requestReader;
+        }
+        private Req reqReference;
+
+        public Req getReqReference() {
+            return reqReference;
+        }
+
+        public void setReqReference(Req reqReference) {
+            this.reqReference = reqReference;
         }
 
         @Override
@@ -198,6 +212,26 @@ public class SlotFromPlc implements UaResponseListener {
             fluxExecutor.schedule(this::proceedFluxRequests);
         }
 
+        public void forceRequest(Object req) {
+            ObjectMapper mapper = new ObjectMapper();
+            String a = null;
+            try {
+                a = mapper.writeValueAsString(req);
+                logger.info("new force reguest - {}", a);
+            } catch (JsonProcessingException e) {
+                logger.info("exc reguest - ", e);
+            }
+            Req request1 = (Req) req;
+            try {
+                request1 = (Req) mapper.readValue(a, reqReference.getClass());
+            } catch (JsonProcessingException e) {
+                logger.info("exc reguest - ", e);
+            }
+            if (! request.compareAndSet(null, request1))
+                throw new IllegalStateException("PLC request before previous one has been read");
+            fluxExecutor.schedule(this::proceedFluxRequests);
+        }
+
         private final synchronized void proceedFluxRequests() {
             ObjectMapper mapper = new ObjectMapper();
             if (requestsCount > 0) {
@@ -208,6 +242,7 @@ public class SlotFromPlc implements UaResponseListener {
                     SlotFromPlc.this.subscriber.requestedPhsResponse();
                     try {
                         slotBase.getSlotGuiData().newRequest(new SlotRequest(1,mapper.writeValueAsString(req)));
+                        slotBase.getSlotGuiData().setCurrentData(mapper.writeValueAsString(req));
                         slotBase.getSlotGuiData().propagateChange();
                     } catch (JsonProcessingException e) {
                         throw new RuntimeException(e);
@@ -248,8 +283,14 @@ public class SlotFromPlc implements UaResponseListener {
         @Override
         public void onNext(Resp resp) {
             plcExecutor.schedule(()->{
+                ObjectMapper mapper = new ObjectMapper();
                 if (responseWriter != null)
                     responseWriter.accept(resp);
+                try {
+                    slotBase.getSlotGuiData().setResponse(mapper.writeValueAsString(resp));
+                } catch (JsonProcessingException e) {
+                    logger.info("exception - ", e);
+                }
                 writePhsResponseAck();
             });
         }

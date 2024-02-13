@@ -7,6 +7,8 @@ import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId;
 import org.reactivestreams.Processor;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.scheduler.Scheduler;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -21,6 +23,7 @@ public class SlotToPlc implements UaResponseListener {
     private Scheduler plcExecutor;
     private Scheduler fluxExecutor;
     private UaNotifierSingle uaNotifierSingle;
+    Logger log = LoggerFactory.getLogger(SlotToPlc.class);
     public UaSlotBase getSlotBase() {
         return slotBase;
     }
@@ -62,6 +65,9 @@ public class SlotToPlc implements UaResponseListener {
         this.slot = slot;
         return slot;
     }
+    public void forceSlotRequest(Object req) {
+        slot.forceSlotRequest(req);
+    }
 
     @Override
     public void onTokenChange() {
@@ -71,6 +77,11 @@ public class SlotToPlc implements UaResponseListener {
     @Override
     public boolean isActivated() {
         return false;
+    }
+
+    @Override
+    public void forceSlotUnlock() {
+        slot.forceSlotUnlock();
     }
 
     @Override
@@ -119,6 +130,7 @@ public class SlotToPlc implements UaResponseListener {
         private AtomicBoolean inRequest = new AtomicBoolean(false);
         private AtomicReference<Resp> response = new AtomicReference<>(null);
         private volatile long requestedFluxResponses = 0;
+
         public Slot(Consumer<? super Req> requestWriter, Supplier<? extends Resp> responseReader) {
             this.requestWriter = requestWriter;
             this.responseReader = responseReader;
@@ -128,11 +140,6 @@ public class SlotToPlc implements UaResponseListener {
 //                throw new RuntimeException(e);
 //            }
         }
-        private final void sendRequestToPlc() {
-
-            uaNotifierSingle.startListeningOnSLot(this);
-
-        }
         @Override
         public void onSubscribe(Subscription s) {
             if (this.subscription != null)
@@ -141,13 +148,6 @@ public class SlotToPlc implements UaResponseListener {
             if (! inRequest.get() && this.subscription != null)
                 this.subscription.request(1);
         }
-
-        public UaNotifierSingle getUaNotifierSingle() {
-            return uaNotifierSingle;
-        }
-
-
-
         @Override
         public void onNext(Req request) {
             if (inRequest.getAndSet(true))
@@ -163,6 +163,7 @@ public class SlotToPlc implements UaResponseListener {
             ObjectMapper mapper = new ObjectMapper();
             try {
                 slotBase.getSlotGuiData().newRequest(new SlotRequest(1, mapper.writeValueAsString(request)));
+                slotBase.getSlotGuiData().setCurrentData(mapper.writeValueAsString(request));
                 slotBase.getSlotGuiData().propagateChange();
             } catch (JsonProcessingException e) {
                 throw new RuntimeException(e);
@@ -177,14 +178,37 @@ public class SlotToPlc implements UaResponseListener {
             Resp resp = responseReader.get();
             if (! response.compareAndSet(null, resp))
                 throw new IllegalStateException("New response from PLC but previous one has not been handled");
+            ObjectMapper mapper = new ObjectMapper();
+            try {
+                slotBase.getSlotGuiData().setResponse(mapper.writeValueAsString(resp));
+            } catch (JsonProcessingException e) {
+                log.info("exception - ", e);
+            }
             slotBase.getSlotGuiData().setDone();
             slotBase.getSlotGuiData().propagateChange();
             fluxExecutor.schedule(this::proceedFluxSubscription);
+        }
+        public void forceRequests(Resp resp) {
+            slotBase.getSlotGuiData().setDone();
+            slotBase.getSlotGuiData().propagateChange();
+            fluxExecutor.schedule(this::proceedFluxSubscription);
+
         }
 
         @Override
         public boolean isActivated() {
             return false;
+        }
+
+        @Override
+        public void forceSlotUnlock() {
+
+        }
+
+        @Override
+        public void forceSlotRequest(Object object) {
+            Req req = (Req) object;
+            forceRequest(req);
         }
 
         @Override
@@ -238,6 +262,9 @@ public class SlotToPlc implements UaResponseListener {
                     this.subscription.request(1);
                 }
             }
+        }
+        public void forceRequest(Req req) {
+            onNext(req);
         }
 
         @Override

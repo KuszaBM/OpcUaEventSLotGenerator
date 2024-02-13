@@ -6,6 +6,9 @@ public class ToPlcResp {
     @OpcUaNode(name = "TID_DATA")
     short trackId;
 
+    public ToPlcResp() {
+    }
+
     public ToPlcResp(short trackId) {
         this.trackId = trackId;
     }
