@@ -2,7 +2,6 @@ package com.tlb.OpcUaSlotxGenerator.websocket;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tlb.OpcUaSlotxGenerator.PhsWebsocketMessage;
 import org.slf4j.LoggerFactory;
 
 public class PhsWebsocketMessageVerifier {

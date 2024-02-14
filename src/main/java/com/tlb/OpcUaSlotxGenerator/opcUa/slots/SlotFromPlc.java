@@ -1,7 +1,8 @@
-package com.tlb.OpcUaSlotxGenerator.opcUa;
+package com.tlb.OpcUaSlotxGenerator.opcUa.slots;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tlb.OpcUaSlotxGenerator.opcUa.UaNotifierSingle;
 import com.tlb.OpcUaSlotxGenerator.schedulers.InThreadScheduler;
 import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId;
 import org.eclipse.milo.opcua.stack.core.types.builtin.Variant;
@@ -18,17 +19,19 @@ import java.util.function.Supplier;
 
 public class SlotFromPlc implements UaResponseListener {
 
-    public SlotFromPlc(UaSlotBase slotBase) {
+    public SlotFromPlc(UaSlotBase slotBase, UaNotifierSingle notifierSingle) {
         this.slotBase = slotBase;
+        this.uaNotifierSingle = notifierSingle;
+        uaNotifierSingle.addSlotToNotifier(this);
     }
 
-    public <Req> Publisher<Req> makePublisher(Supplier<? extends Req> requestReader, InThreadScheduler plcExecutor, Req ref) {
+    public <Req> Publisher<Req> makePublisher(Supplier<? extends Req> requestReader, InThreadScheduler plcExecutor, Class<Req> classReq) {
         if (this.reader != null)
             throw new IllegalStateException("makePublisher already called");
         this.plcExecutor = plcExecutor;
         isListening = true;
         SlotReader<Req> publisher = new SlotReader<>(requestReader);
-        publisher.setReqReference(ref);
+        publisher.setReqReference(classReq);
         this.reader = publisher;
         return publisher;
     }
@@ -42,14 +45,6 @@ public class SlotFromPlc implements UaResponseListener {
         return subscriber;
     }
 
-    public Subscriber<Void> makeAckOnlySubscriber1() {
-        if (this.subscriber != null)
-            throw new IllegalStateException("makeSubscriber or makeAckOnlySubscriber or makeAutoAck already called");
-        this.fluxExecutor = fluxExecutor;
-        SubscribingSlotResponder<Void> subscriber = new SubscribingSlotResponder<>(null);
-        this.subscriber = subscriber;
-        return subscriber;
-    }
     public Subscriber<Void> makeAckOnlySubscriber(InThreadScheduler fluxExecutor) {
         if (this.subscriber != null)
             throw new IllegalStateException("makeSubscriber or makeAckOnlySubscriber or makeAutoAck already called");
@@ -114,6 +109,11 @@ public class SlotFromPlc implements UaResponseListener {
 
     }
 
+    @Override
+    public void forceSlotResponse(Object object) {
+
+    }
+
     public UaNotifierSingle getUaNotifierSingle() {
         return uaNotifierSingle;
     }
@@ -167,20 +167,14 @@ public class SlotFromPlc implements UaResponseListener {
     }
 
     private final class SlotReader<Req> implements Publisher<Req>, ReaderBase {
-
+        private Class<Req> reqClass;
+        private final Supplier<? extends Req> requestReader;
+        private volatile Subscriber<? super Req> subscriber = null;
+        private volatile long requestsCount = 0;
+        private final AtomicReference<Req> request = new AtomicReference<>(null);
         public SlotReader(Supplier<? extends Req> requestReader) {
             this.requestReader = requestReader;
         }
-        private Req reqReference;
-
-        public Req getReqReference() {
-            return reqReference;
-        }
-
-        public void setReqReference(Req reqReference) {
-            this.reqReference = reqReference;
-        }
-
         @Override
         public void subscribe(Subscriber<? super Req> subscriber) {
             if (this.subscriber != null)
@@ -196,7 +190,6 @@ public class SlotFromPlc implements UaResponseListener {
 
                     proceedFluxRequests();
                 }
-
                 @Override
                 public void cancel() {
                     throw new IllegalStateException("cancellation of PLC subscription is not allowed");
@@ -204,34 +197,26 @@ public class SlotFromPlc implements UaResponseListener {
             });
 
         }
-
         @Override
         public void onPlcRequest() {
             if (! request.compareAndSet(null, requestReader.get()))
                 throw new IllegalStateException("PLC request before previous one has been read");
             fluxExecutor.schedule(this::proceedFluxRequests);
         }
-
         public void forceRequest(Object req) {
-            ObjectMapper mapper = new ObjectMapper();
-            String a = null;
+            Req request1= null;
             try {
-                a = mapper.writeValueAsString(req);
-                logger.info("new force reguest - {}", a);
+                ObjectMapper mapper = new ObjectMapper();
+                String reqAsJson = mapper.writeValueAsString(req);
+                logger.info("new force reguest - {}", reqAsJson);
+                request1 = (Req) mapper.readValue(reqAsJson, reqClass);
+                if (! request.compareAndSet(null, request1))
+                    throw new IllegalStateException("PLC request before previous one has been read");
+                fluxExecutor.schedule(this::proceedFluxRequests);
             } catch (JsonProcessingException e) {
-                logger.info("exc reguest - ", e);
+                logger.info("Exception while mapping object - ", e);
             }
-            Req request1 = (Req) req;
-            try {
-                request1 = (Req) mapper.readValue(a, reqReference.getClass());
-            } catch (JsonProcessingException e) {
-                logger.info("exc reguest - ", e);
-            }
-            if (! request.compareAndSet(null, request1))
-                throw new IllegalStateException("PLC request before previous one has been read");
-            fluxExecutor.schedule(this::proceedFluxRequests);
         }
-
         private final synchronized void proceedFluxRequests() {
             ObjectMapper mapper = new ObjectMapper();
             if (requestsCount > 0) {
@@ -251,14 +236,15 @@ public class SlotFromPlc implements UaResponseListener {
                 }
             }
         }
-
-        private final Supplier<? extends Req> requestReader;
-        private volatile Subscriber<? super Req> subscriber = null;
-        private volatile long requestsCount = 0;
-        private final AtomicReference<Req> request = new AtomicReference<>(null);
+        public void setReqReference(Class<Req> reqClass) {
+            this.reqClass = reqClass;
+        }
     }
 
     private final class SubscribingSlotResponder<Resp> implements Subscriber<Resp>, SubscriberBase {
+
+        private final Consumer<? super Resp> responseWriter;
+        private volatile Subscription subscription;
 
         public SubscribingSlotResponder(Consumer<? super Resp> responseWriter) {
             this.responseWriter = responseWriter;
@@ -267,10 +253,9 @@ public class SlotFromPlc implements UaResponseListener {
         @Override
         public void requestedPhsResponse() {
             if (this.subscription == null)
-                throw new IllegalStateException("There is no subscrription");
+                throw new IllegalStateException("There is no subscription");
             this.subscription.request(1);
         }
-
         @Override
         public void onSubscribe(Subscription subscription) {
             if (this.subscription != null)
@@ -279,7 +264,6 @@ public class SlotFromPlc implements UaResponseListener {
             //TODO zrobić tak żeby kuba nie płakał
             subscription.request(1);
         }
-
         @Override
         public void onNext(Resp resp) {
             plcExecutor.schedule(()->{
@@ -294,22 +278,16 @@ public class SlotFromPlc implements UaResponseListener {
                 writePhsResponseAck();
             });
         }
-
         @Override
         public void onError(Throwable t) {
             // TODO Auto-generated method stub
-
         }
-
         @Override
         public void onComplete() {
             throw new IllegalStateException("onComplete is not allowed for SLOT-based Flux");
         }
 
-        private final Consumer<? super Resp> responseWriter;
-        private volatile Subscription subscription;
     }
-
     private final class TrivialResponder implements SubscriberBase {
         @Override
         public void requestedPhsResponse() {

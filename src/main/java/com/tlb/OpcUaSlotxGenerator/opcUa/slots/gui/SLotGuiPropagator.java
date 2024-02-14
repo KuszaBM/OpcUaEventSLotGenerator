@@ -1,6 +1,6 @@
-package com.tlb.OpcUaSlotxGenerator.opcUa;
+package com.tlb.OpcUaSlotxGenerator.opcUa.slots.gui;
 
-import com.tlb.OpcUaSlotxGenerator.PhsWebsocketMessage;
+import com.tlb.OpcUaSlotxGenerator.websocket.PhsWebsocketMessage;
 import com.tlb.OpcUaSlotxGenerator.websocket.SinksHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

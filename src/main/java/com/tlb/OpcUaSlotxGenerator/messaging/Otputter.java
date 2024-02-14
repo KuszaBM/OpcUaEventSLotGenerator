@@ -1,4 +1,4 @@
-package com.tlb.OpcUaSlotxGenerator;
+package com.tlb.OpcUaSlotxGenerator.messaging;
 
 import com.tlb.OpcUaSlotxGenerator.demo.slots.DecisionResp;
 import org.slf4j.Logger;
@@ -6,7 +6,6 @@ import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
 
-import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class Otputter implements Runnable {

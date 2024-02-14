@@ -36,7 +36,7 @@ public class OpcUaClientProvider {
         try {
             c1.disconnect().get();
         } catch (Exception e) {
-            logger.info("ded - ", e);
+            logger.info("connection down - ", e);
         }
     }
 

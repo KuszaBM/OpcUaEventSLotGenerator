@@ -3,10 +3,9 @@ package com.tlb.OpcUaSlotxGenerator.websocket;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tlb.OpcUaSlotxGenerator.PhsWebsocketMessage;
 import com.tlb.OpcUaSlotxGenerator.opcUa.OpcUaSlotsProvider;
-import com.tlb.OpcUaSlotxGenerator.opcUa.SlotGuiData;
-import com.tlb.OpcUaSlotxGenerator.opcUa.UaSlotBase;
+import com.tlb.OpcUaSlotxGenerator.opcUa.slots.gui.SlotGuiData;
+import com.tlb.OpcUaSlotxGenerator.opcUa.slots.UaSlotBase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;

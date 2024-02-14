@@ -1,4 +1,4 @@
-package com.tlb.OpcUaSlotxGenerator;
+package com.tlb.OpcUaSlotxGenerator.messaging;
 
 public class ServicesConnector {
 //    private Sinks.Many<DecisionResp> sink;

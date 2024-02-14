@@ -20,18 +20,15 @@ public class OpcUaSlotxGeneratorApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(OpcUaSlotxGeneratorApplication.class, args);
 		ApplicationContext ctx = new AnnotationConfigApplicationContext(OpcUaConfig.class);
-//		ApplicationContext ctx2 = new AnnotationConfigApplicationContext(KafkaProcedureConfig.class);
 		OpcUaSlotsProvider provider = ctx.getBean(OpcUaSlotsProvider.class);
 		ApplicationContext ctx3 = new AnnotationConfigApplicationContext(WebClientConfig.class);
 		WebClient webClient = ctx3.getBean(WebClient.class);
 		if(webClient == null)
 			System.out.println("web jajco");
 		provider.setWebClient(webClient);
-//		ServicesConnector servicesConnector = ctx2.getBean(ServicesConnector.class);
 		provider.setUaNotifierSingle(UaNotifierSingle.getInstance());
 		OpcUaClientProvider providerSlot = ctx.getBean(OpcUaClientProvider.class);
 		Logger logger = LoggerFactory.getLogger(OpcUaSlotxGeneratorApplication.class);
-//		Process p = new Process(provider, );
 		Process p = new Process(provider);
 		Thread t = new Thread(p::start);
 		t.setName("w1");
@@ -48,7 +45,6 @@ public class OpcUaSlotxGeneratorApplication {
 		OpcSlotsActivator slots = new OpcSlotsActivator(providerSlot, provider.getUaNotifierSingle());
 		Thread pro = new Thread(provider::initialStart, "PLC");
 		pro.start();
-		//provider.initialStart();
 		logger.info("provider done");
 		while (!provider.isAfterInit()) {
 			logger.info("provider not done");

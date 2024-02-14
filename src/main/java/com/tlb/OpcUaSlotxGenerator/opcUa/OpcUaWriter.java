@@ -1,7 +1,8 @@
 package com.tlb.OpcUaSlotxGenerator.opcUa;
 
 import com.tlb.OpcUaSlotxGenerator.opcUa.annnotations.OpcUaNode;
-import org.eclipse.milo.opcua.sdk.client.OpcUaClient;
+import com.tlb.OpcUaSlotxGenerator.opcUa.slots.SlotType;
+import com.tlb.OpcUaSlotxGenerator.opcUa.slots.UaSlotBase;
 import org.eclipse.milo.opcua.stack.core.types.builtin.DataValue;
 import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId;
 import org.eclipse.milo.opcua.stack.core.types.builtin.StatusCode;
@@ -38,7 +39,7 @@ public class OpcUaWriter <T> implements Consumer<T> {
 
             f.setAccessible(true);
             writes.add((t)->{
-                try {
+                try {;
                     Variant writeValue = new Variant(f.get(t));
                     DataValue dataValue = DataValue.valueOnly(writeValue);
                     logger.info("try to update node - {}", node);
@@ -73,6 +74,7 @@ public class OpcUaWriter <T> implements Consumer<T> {
             logger.info("Send to Opc - {} | Response - {}", writeValue, status.get());
         } catch (Exception e) {
             logger.info("Exception while writing to PLC - Connection state: {}", slotBase.getOpcUaClientProvider().isConnected() ? "Connected" : "Not Connected");
+            logger.info("MES - ", e);
             while (!slotBase.getOpcUaClientProvider().isConnected()) {
                 logger.info("Slot {} blocked - waiting for connection", slotBase.getSlotId());
                 try {
@@ -96,7 +98,6 @@ public class OpcUaWriter <T> implements Consumer<T> {
             }
         }
         logger.info("Finished writers write to Opc");
-
     }
     private final List<Consumer<T>> writes = new ArrayList<>();
 }

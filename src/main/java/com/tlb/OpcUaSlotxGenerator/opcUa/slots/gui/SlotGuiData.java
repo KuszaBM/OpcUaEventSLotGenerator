@@ -1,6 +1,7 @@
-package com.tlb.OpcUaSlotxGenerator.opcUa;
+package com.tlb.OpcUaSlotxGenerator.opcUa.slots.gui;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.tlb.OpcUaSlotxGenerator.opcUa.slots.SlotRequest;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,15 +22,6 @@ public class SlotGuiData {
         this.currentData = currentData;
         this.requestsHistory = requestsHistory;
     }
-
-    public String getCurrentData() {
-        return currentData;
-    }
-
-    public void setCurrentData(String currentData) {
-        this.currentData = currentData;
-    }
-
     public SlotGuiData(int id, String direction, SLotGuiPropagator propagator) {
         this.id = id;
         this.direction = direction;
@@ -37,10 +29,8 @@ public class SlotGuiData {
         this.isOpen = true;
         this.requestsHistory = new ArrayList<>();
     }
-
     public SlotGuiData() {
     }
-
     public SlotGuiData(int id, String direction, boolean isOpen, List<SlotRequest> requestsHistory) {
         this.id = id;
         this.direction = direction;
@@ -70,6 +60,13 @@ public class SlotGuiData {
     public void setResponse(String response) {
         if (!requestsHistory.isEmpty())
             requestsHistory.get(0).setResponseData(response);
+    }
+    public String getCurrentData() {
+        return currentData;
+    }
+
+    public void setCurrentData(String currentData) {
+        this.currentData = currentData;
     }
 
     public int getId() {

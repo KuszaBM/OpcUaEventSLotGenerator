@@ -1,7 +1,6 @@
 package com.tlb.OpcUaSlotxGenerator.websocket;
 
 
-import com.tlb.OpcUaSlotxGenerator.PhsWebsocketMessage;
 import com.tlb.OpcUaSlotxGenerator.opcUa.OpcUaSlotsProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

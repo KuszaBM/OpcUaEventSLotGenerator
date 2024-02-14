@@ -1,4 +1,4 @@
-package com.tlb.OpcUaSlotxGenerator.opcUa;
+package com.tlb.OpcUaSlotxGenerator.opcUa.slots;
 
 public enum SlotType {
     FromPlc,

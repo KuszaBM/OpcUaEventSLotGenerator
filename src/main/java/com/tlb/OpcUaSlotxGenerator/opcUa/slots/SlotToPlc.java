@@ -1,7 +1,8 @@
-package com.tlb.OpcUaSlotxGenerator.opcUa;
+package com.tlb.OpcUaSlotxGenerator.opcUa.slots;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tlb.OpcUaSlotxGenerator.opcUa.*;
 import com.tlb.OpcUaSlotxGenerator.schedulers.InThreadScheduler;
 import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId;
 import org.reactivestreams.Processor;
@@ -31,8 +32,10 @@ public class SlotToPlc implements UaResponseListener {
         this.uaNotifierSingle = uaNotifierSingle;
         uaNotifierSingle.addSlotToNotifier(this);
     }
-    public SlotToPlc(UaSlotBase slotBase) {
+    public SlotToPlc(UaSlotBase slotBase, UaNotifierSingle notifierSingle) {
         this.slotBase = slotBase;
+        this.uaNotifierSingle = notifierSingle;
+        notifierSingle.addSlotToNotifier(this);
     }
 
     // requestWriter.accept(req) is called to write req to PLC, before sendRequestToPlc(), both from PLC thread
@@ -46,7 +49,7 @@ public class SlotToPlc implements UaResponseListener {
         this.slot = slot;
         return slot;
     }
-    public <Req, Resp> Processor<Req, Resp> makeProcessor(Class<? super Req> cls, Class<? extends Resp> cls1, InThreadScheduler plcExecutor, InThreadScheduler fluxExecutor) {
+    public <Req, Resp> Processor<Req, Resp> makeProcessor(Class<? super Req> cls, Class<? extends Resp> cls1, InThreadScheduler plcExecutor, InThreadScheduler fluxExecutor, Class<Req> reqClass, Class<Resp> respClass) {
         if (this.slot != null)
             throw new IllegalStateException("Slot already created");
         this.plcExecutor = plcExecutor;
@@ -54,6 +57,8 @@ public class SlotToPlc implements UaResponseListener {
         Consumer<? super Req> requestWriter = new OpcUaWriter<>(cls, slotBase);
         Supplier<? extends Resp> responseReader = new OpcUaReader<>(cls1,slotBase);
         Slot<Req, Resp> slot = new Slot<>(requestWriter, responseReader);
+        slot.setReqClass(reqClass);
+        slot.setRespClass(respClass);
         this.slot = slot;
         return slot;
     }
@@ -67,6 +72,11 @@ public class SlotToPlc implements UaResponseListener {
     }
     public void forceSlotRequest(Object req) {
         slot.forceSlotRequest(req);
+    }
+
+    @Override
+    public void forceSlotResponse(Object object) {
+        slot.forceSlotResponse(object);
     }
 
     @Override
@@ -123,22 +133,36 @@ public class SlotToPlc implements UaResponseListener {
         private final Supplier<? extends Resp> responseReader;
         private Subscription subscription;
         private Subscription publication;
-        //private UaNotifier slotNotifier;
         private boolean isListening;
         private final boolean direction = false;
+        private boolean forced;
         private Subscriber<? super Resp> subscriber;
         private AtomicBoolean inRequest = new AtomicBoolean(false);
         private AtomicReference<Resp> response = new AtomicReference<>(null);
         private volatile long requestedFluxResponses = 0;
+        private Class<Req> reqClass;
+        private Class<Resp> respClass;
+
+        public Class<Resp> getRespClass() {
+            return respClass;
+        }
+
+        public void setRespClass(Class<Resp> respClass) {
+            this.respClass = respClass;
+        }
+
+        public Class<Req> getReqClass() {
+            return reqClass;
+        }
+
+        public void setReqClass(Class<Req> reqClass) {
+            log.info("Set Slot request class - {}", reqClass);
+            this.reqClass = reqClass;
+        }
 
         public Slot(Consumer<? super Req> requestWriter, Supplier<? extends Resp> responseReader) {
             this.requestWriter = requestWriter;
             this.responseReader = responseReader;
-//            try {
-//                this.slotNotifier = new UaNotifier(false, this, slotBase, 100);
-//            } catch (ExecutionException | InterruptedException e) {
-//                throw new RuntimeException(e);
-//            }
         }
         @Override
         public void onSubscribe(Subscription s) {
@@ -188,13 +212,20 @@ public class SlotToPlc implements UaResponseListener {
             slotBase.getSlotGuiData().propagateChange();
             fluxExecutor.schedule(this::proceedFluxSubscription);
         }
-        public void forceRequests(Resp resp) {
+        public void forceResponse(Resp resp) {
+            if (! response.compareAndSet(null, resp))
+                throw new IllegalStateException("New response from PLC but previous one has not been handled");
+            ObjectMapper mapper = new ObjectMapper();
+            try {
+                slotBase.getSlotGuiData().setResponse(mapper.writeValueAsString(resp));
+            } catch (JsonProcessingException e) {
+                log.info("exception - ", e);
+            }
             slotBase.getSlotGuiData().setDone();
             slotBase.getSlotGuiData().propagateChange();
             fluxExecutor.schedule(this::proceedFluxSubscription);
 
         }
-
         @Override
         public boolean isActivated() {
             return false;
@@ -207,8 +238,31 @@ public class SlotToPlc implements UaResponseListener {
 
         @Override
         public void forceSlotRequest(Object object) {
-            Req req = (Req) object;
-            forceRequest(req);
+            Req req = null;
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+                String reqAsJson = null;
+                reqAsJson = mapper.writeValueAsString(object);
+                req = (Req) mapper.readValue(reqAsJson, reqClass);
+                forceRequest(req);
+            } catch (JsonProcessingException e) {
+                log.info("exception Mapping - !!!!!");
+            }
+
+        }
+
+        @Override
+        public void forceSlotResponse(Object object) {
+            Resp resp = null;
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+                String reqAsJson = null;
+                reqAsJson = mapper.writeValueAsString(object);
+                resp = (Resp) mapper.readValue(reqAsJson, respClass);
+                forceResponse(resp);
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
+            }
         }
 
         @Override
@@ -259,6 +313,8 @@ public class SlotToPlc implements UaResponseListener {
                     if (requestedFluxResponses < Long.MAX_VALUE)
                         requestedFluxResponses--;
                     inRequest.set(false);
+                    if(this.subscriber != null)
+                        this.subscriber.onNext(resp);
                     this.subscription.request(1);
                 }
             }
@@ -272,7 +328,6 @@ public class SlotToPlc implements UaResponseListener {
             if (this.publication != null && this.subscriber != null) {
                 subscriber.onComplete();
             }
-
             this.subscriber = subscriber;
             publication = new Subscription() {
                 @Override

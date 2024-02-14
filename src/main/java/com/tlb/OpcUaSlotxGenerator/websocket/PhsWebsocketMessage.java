@@ -1,4 +1,4 @@
-package com.tlb.OpcUaSlotxGenerator;
+package com.tlb.OpcUaSlotxGenerator.websocket;
 
 public class PhsWebsocketMessage<T> {
     public String type;

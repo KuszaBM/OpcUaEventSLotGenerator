@@ -13,6 +13,7 @@ public class ToPlcReq {
         this.trackId = trackId;
     }
 
+
     public short getTrackId() {
         return trackId;
     }

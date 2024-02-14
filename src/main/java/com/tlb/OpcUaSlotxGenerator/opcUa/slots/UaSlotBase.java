@@ -1,5 +1,8 @@
-package com.tlb.OpcUaSlotxGenerator.opcUa;
+package com.tlb.OpcUaSlotxGenerator.opcUa.slots;
 
+import com.tlb.OpcUaSlotxGenerator.opcUa.OpcUaClientProvider;
+import com.tlb.OpcUaSlotxGenerator.opcUa.slots.gui.SLotGuiPropagator;
+import com.tlb.OpcUaSlotxGenerator.opcUa.slots.gui.SlotGuiData;
 import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

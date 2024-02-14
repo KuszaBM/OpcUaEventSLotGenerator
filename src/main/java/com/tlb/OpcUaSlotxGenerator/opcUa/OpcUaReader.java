@@ -2,7 +2,7 @@ package com.tlb.OpcUaSlotxGenerator.opcUa;
 
 import com.tlb.OpcUaSlotxGenerator.opcUa.annnotations.OpcUaConstructor;
 import com.tlb.OpcUaSlotxGenerator.opcUa.annnotations.OpcUaNode;
-import org.eclipse.milo.opcua.sdk.client.OpcUaClient;
+import com.tlb.OpcUaSlotxGenerator.opcUa.slots.UaSlotBase;
 import org.eclipse.milo.opcua.stack.core.UaException;
 import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId;
 
@@ -44,7 +44,6 @@ public class OpcUaReader<T> implements Supplier<T> {
                 } catch (UaException e) {
                     throw new RuntimeException(e);
                 }
-                //TODO odczyt
             };
         }
     }
@@ -60,7 +59,6 @@ public class OpcUaReader<T> implements Supplier<T> {
             throw new RuntimeException(e);
         }
     }
-
     private final Supplier<Object>[] paramReaders;
     Constructor<?> constructor;
 }

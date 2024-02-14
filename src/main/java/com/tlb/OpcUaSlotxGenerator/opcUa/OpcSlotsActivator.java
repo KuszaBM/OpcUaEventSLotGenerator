@@ -1,5 +1,6 @@
 package com.tlb.OpcUaSlotxGenerator.opcUa;
 
+import com.tlb.OpcUaSlotxGenerator.opcUa.slots.UaResponseListener;
 import org.eclipse.milo.opcua.sdk.client.OpcUaClient;
 import org.eclipse.milo.opcua.stack.core.UaException;
 import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId;

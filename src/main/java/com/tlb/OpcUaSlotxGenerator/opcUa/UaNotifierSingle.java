@@ -1,5 +1,6 @@
 package com.tlb.OpcUaSlotxGenerator.opcUa;
 
+import com.tlb.OpcUaSlotxGenerator.opcUa.slots.UaResponseListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,14 +13,6 @@ public class UaNotifierSingle {
     private Map<Integer, UaResponseListener> slots;
     private boolean isInit = false;
 
-    public boolean isInit() {
-        return isInit;
-    }
-
-    public void setInit(boolean init) {
-        isInit = init;
-    }
-
     private UaNotifierSingle() {
         slots = new HashMap<>();
     }
@@ -29,12 +22,8 @@ public class UaNotifierSingle {
         }
         return instance;
     }
-
     public void addSlotToNotifier(UaResponseListener slot) {
         slots.put(slot.getSlotId(), slot);
-    }
-    public void startListeningOnSLot(UaResponseListener slot) {
-        slot.setListening(true);
     }
     private void activateSlot(UaResponseListener slot) {
         logger.info("trig for slot - {} ", slot.getName());
@@ -56,4 +45,12 @@ public class UaNotifierSingle {
     public Map<Integer, UaResponseListener> getSlots() {
         return slots;
     }
+    public boolean isInit() {
+        return isInit;
+    }
+
+    public void setInit(boolean init) {
+        isInit = init;
+    }
+
 }
