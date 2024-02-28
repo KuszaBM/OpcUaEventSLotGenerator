@@ -103,12 +103,10 @@ public class SlotFromPlc implements UaResponseListener {
     @Override
     public void forceSlotUnlock() {
     }
-
     @Override
     public void forceSlotRequest(Object object) {
 
     }
-
     @Override
     public void forceSlotResponse(Object object) {
 
@@ -204,6 +202,9 @@ public class SlotFromPlc implements UaResponseListener {
             fluxExecutor.schedule(this::proceedFluxRequests);
         }
         public void forceRequest(Object req) {
+            //sim PlcReading
+           // Req holder = requestReader.get();
+
             Req request1= null;
             try {
                 ObjectMapper mapper = new ObjectMapper();

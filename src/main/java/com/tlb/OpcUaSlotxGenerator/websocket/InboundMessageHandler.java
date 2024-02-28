@@ -37,12 +37,26 @@ public class InboundMessageHandler {
     public void handle(PhsWebsocketMessage<?> message) {
         log.info("new message to handle Type: {}", message.type);
         int slotNo = 0;
-        if (message.type.contains("REQUEST-SLOT"))
+        if (message.type.contains("REQUEST-SLOT")) {
             slotNo = Integer.parseInt(message.type.split("-")[2]);
-        log.info("called request for slot {}", slotNo);
-        if (slotsProvider.getSlotToAdd().get(slotNo).getSlotGuiData().getDirection().equals("OUT"))
-            slotsProvider.getSlotFromPlc(slotNo).forceReq(message.data);
-        if (slotsProvider.getSlotToAdd().get(slotNo).getSlotGuiData().getDirection().equals("IN"))
-            slotsProvider.getSlotToPlc(slotNo).forceSlotRequest(message.data);
+            log.info("called request for slot {}", slotNo);
+            if (slotsProvider.getSlotToAdd().get(slotNo).getSlotGuiData().getDirection().equals("OUT"))
+                slotsProvider.getSlotFromPlc(slotNo).forceReq(message.data);
+            if (slotsProvider.getSlotToAdd().get(slotNo).getSlotGuiData().getDirection().equals("IN"))
+                slotsProvider.getSlotToPlc(slotNo).forceSlotRequest(message.data);
+        }
+        if(message.type.contains("ACK-SLOT")) {
+            slotNo = Integer.parseInt(message.type.split("-")[2]);
+            log.info("called request for slot {}", slotNo);
+            if (slotsProvider.getSlotToAdd().get(slotNo).getSlotGuiData().getDirection().equals("IN"))
+                slotsProvider.getSlotToPlc(slotNo).onTokenChange();
+        }
+        if(message.type.contains("RESPONSE-SLOT")) {
+            slotNo = Integer.parseInt(message.type.split("-")[2]);
+            log.info("called request for slot {}", slotNo);
+            if (slotsProvider.getSlotToAdd().get(slotNo).getSlotGuiData().getDirection().equals("IN"))
+                slotsProvider.getSlotToPlc(slotNo).forceSlotResponse(message.data);
+        }
+
     }
 }

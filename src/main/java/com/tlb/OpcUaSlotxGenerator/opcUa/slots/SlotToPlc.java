@@ -213,6 +213,7 @@ public class SlotToPlc implements UaResponseListener {
             fluxExecutor.schedule(this::proceedFluxSubscription);
         }
         public void forceResponse(Resp resp) {
+
             if (! response.compareAndSet(null, resp))
                 throw new IllegalStateException("New response from PLC but previous one has not been handled");
             ObjectMapper mapper = new ObjectMapper();

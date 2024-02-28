@@ -23,8 +23,6 @@ public class OpcUaSlotxGeneratorApplication {
 		OpcUaSlotsProvider provider = ctx.getBean(OpcUaSlotsProvider.class);
 		ApplicationContext ctx3 = new AnnotationConfigApplicationContext(WebClientConfig.class);
 		WebClient webClient = ctx3.getBean(WebClient.class);
-		if(webClient == null)
-			System.out.println("web jajco");
 		provider.setWebClient(webClient);
 		provider.setUaNotifierSingle(UaNotifierSingle.getInstance());
 		OpcUaClientProvider providerSlot = ctx.getBean(OpcUaClientProvider.class);
@@ -56,17 +54,5 @@ public class OpcUaSlotxGeneratorApplication {
 		}
 		t.start();
 		slots.run();
-//		Thread az = new Thread(() -> {
-//            try {
-//                Thread.sleep(5000);
-//            } catch (InterruptedException e) {
-//                throw new RuntimeException(e);
-//            }
-//            logger.info("!!!!!!!!!!!!!!! test slot 1 call");
-//			Short[] ac = new Short[1];
-//			ac[0] = 1;
-//			provider.getUaNotifierSingle().runByMethod(ac);
-//		});
-//		az.start();
 	}
 }

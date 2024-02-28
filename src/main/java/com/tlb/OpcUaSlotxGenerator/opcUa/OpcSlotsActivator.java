@@ -86,17 +86,20 @@ public class OpcSlotsActivator {
     }
 
     private CompletableFuture<Short[]> slotsCall(OpcUaClient client, short input) throws UaException {
-        NodeId objectId = new NodeId(3,"\"OPC_UA_TESTY_DB\"");
-        NodeId methodId = new NodeId(3,"\"OPC_UA_TESTY_DB\".Method");
+//        NodeId objectId = new NodeId(3,"\"OPC_UA_TESTY_DB\"");
+//        NodeId methodId = new NodeId(3,"\"OPC_UA_TESTY_DB\".Method");
+        NodeId objectId = new NodeId(2,"HelloWorld");
+        NodeId methodId = new NodeId(2,"HelloWorld/Method");
         short zz = 2;
+//        CallMethodRequest request = new CallMethodRequest(
+//                objectId, methodId, new Variant[]{new Variant(input), new Variant(zz)});
         CallMethodRequest request = new CallMethodRequest(
-                objectId, methodId, new Variant[]{new Variant(input), new Variant(zz)});
-
+                objectId, methodId, new Variant[]{new Variant(input)});
         return client.call(request).thenCompose(result -> {
             StatusCode statusCode = result.getStatusCode();
             if (statusCode.isGood()) {
-                Short[] a = (Short[]) result.getOutputArguments()[1].getValue();
-                logger.info("result - {}", result.getOutputArguments()[1].getValue());
+                logger.info("result - {}", result.getOutputArguments()[0].getValue());
+                Short[] a = (Short[]) result.getOutputArguments()[0].getValue();
                 startingAsk();
                 return CompletableFuture.completedFuture(a);
             } else {

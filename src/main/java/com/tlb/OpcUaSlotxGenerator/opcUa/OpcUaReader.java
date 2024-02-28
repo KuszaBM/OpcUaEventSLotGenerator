@@ -5,6 +5,8 @@ import com.tlb.OpcUaSlotxGenerator.opcUa.annnotations.OpcUaNode;
 import com.tlb.OpcUaSlotxGenerator.opcUa.slots.UaSlotBase;
 import org.eclipse.milo.opcua.stack.core.UaException;
 import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -14,6 +16,7 @@ import java.util.function.Supplier;
 public class OpcUaReader<T> implements Supplier<T> {
     private NodeId tokenId;
     private T item;
+    Logger log = LoggerFactory.getLogger(OpcUaReader.class);
 
     public OpcUaReader(Class<T> cls, UaSlotBase slotBase) {
         tokenId = slotBase.getTokenId();
@@ -38,7 +41,8 @@ public class OpcUaReader<T> implements Supplier<T> {
                 throw new IllegalArgumentException("Name for all constructor parameters need to be defined");
             paramReaders[idx] = () -> {
                 try {
-                    NodeId dataNode = new NodeId(slotBase.getNamespace(), "\"" + slotBase.getOpcUaName() + "\"." + "\"" + a.name() + "_" + slotBase.getSlotName() +  "\"");
+                   // NodeId dataNode = new NodeId(slotBase.getNamespace(), "\"" + slotBase.getOpcUaName() + "\"." + "\"" + a.name() + "_" + slotBase.getSlotName() +  "\"");
+                    NodeId dataNode = new NodeId(slotBase.getNamespace(), slotBase.getOpcUaName() + "\"" + a.name() + "_" + slotBase.getSlotName() +  "\"");
                     System.out.println(dataNode);
                     return slotBase.getOpcUaClientProvider().getClient().getAddressSpace().getVariableNode(dataNode).readValue().getValue().getValue();
                 } catch (UaException e) {

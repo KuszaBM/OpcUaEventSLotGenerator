@@ -3,11 +3,10 @@ package com.tlb.OpcUaSlotxGenerator.controller;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tlb.OpcUaSlotxGenerator.config.OpcUaConfig;
-import com.tlb.OpcUaSlotxGenerator.demo.slots.DecisionReq;
 import com.tlb.OpcUaSlotxGenerator.demo.slots.ToPlcResp;
 import com.tlb.OpcUaSlotxGenerator.opcUa.OpcUaSlotsProvider;
-import com.tlb.OpcUaSlotxGenerator.opcUa.slots.gui.SlotGuiData;
 import com.tlb.OpcUaSlotxGenerator.opcUa.slots.UaSlotBase;
+import com.tlb.OpcUaSlotxGenerator.opcUa.slots.gui.SlotGuiData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
@@ -33,7 +32,8 @@ public class GeneralController {
         return Flux.fromIterable(slotsProvider.getSlotToAdd().values().stream().map(UaSlotBase::getSlotGuiData).toList());
     }
     @PostMapping("slots/request/{slotId}")
-    public String testForce(@RequestBody DecisionReq req, @PathVariable int slotId) {
+    public String testForce(@RequestBody Object req, @PathVariable int slotId) {
+        log.info("CallingSlot {}", slotId);
         if (slotsProvider.getSlotToAdd().get(slotId).getSlotGuiData().getDirection().equals("OUT"))
             slotsProvider.getSlotFromPlc(slotId).forceReq(req);
         return "OK";
@@ -58,6 +58,14 @@ public class GeneralController {
                 slotsProvider.getSlotToPlc(slotId).forceSlotResponse(resp);
             }
             return "OK";
+    }
+    @PostMapping("slots/requestOut/ackSlot/{slotId}")
+    public String testForceIn(@PathVariable int slotId) {
+        if (slotsProvider.getSlotToAdd().get(slotId).getSlotGuiData().getDirection().equals("IN")) {
+            log.info("new ack slot {}", slotId);
+            slotsProvider.getSlotToPlc(slotId).onTokenChange();
+        }
+        return "OK";
     }
 }
 

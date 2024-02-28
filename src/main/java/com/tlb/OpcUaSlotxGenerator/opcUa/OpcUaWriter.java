@@ -31,7 +31,7 @@ public class OpcUaWriter <T> implements Consumer<T> {
             OpcUaNode a = f.getAnnotation(OpcUaNode.class);
             if(a == null)
                 continue;
-            String s = "\"" + slotBase.getOpcUaName() + "\".";
+            String s = slotBase.getOpcUaName();
             String s2 = a.name().isEmpty() ?
                     "\"" + f.getName() + "_" + slotBase.getSlotName() +  "\"" :
                     "\"" + a.name() + "_" + slotBase.getSlotName() +  "\"";
