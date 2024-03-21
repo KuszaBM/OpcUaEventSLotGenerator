@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tlb.OpcUaSlotxGenerator.opcUa.UaNotifierSingle;
 import com.tlb.OpcUaSlotxGenerator.schedulers.InThreadScheduler;
+import org.eclipse.milo.opcua.stack.core.UaException;
 import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId;
 import org.eclipse.milo.opcua.stack.core.types.builtin.Variant;
 import org.reactivestreams.Publisher;
@@ -45,11 +46,11 @@ public class SlotFromPlc implements UaResponseListener {
         return subscriber;
     }
 
-    public Subscriber<Void> makeAckOnlySubscriber(InThreadScheduler fluxExecutor) {
+    public Subscriber<Object> makeAckOnlySubscriber(InThreadScheduler fluxExecutor) {
         if (this.subscriber != null)
             throw new IllegalStateException("makeSubscriber or makeAckOnlySubscriber or makeAutoAck already called");
         this.fluxExecutor = fluxExecutor;
-        SubscribingSlotResponder<Void> subscriber = new SubscribingSlotResponder<>(null);
+        SubscribingSlotResponder<Object> subscriber = new SubscribingSlotResponder<>(null);
         this.subscriber = subscriber;
         return subscriber;
     }
@@ -64,6 +65,9 @@ public class SlotFromPlc implements UaResponseListener {
             throw new IllegalStateException("makeSubscriber or makeAckOnlySubscriber or makeAutoAck already called");
         this.fluxExecutor = scheduler;
         this.subscriber = new TrivialResponder();
+    }
+    public void makeTwoDirectionToken() {
+        this.twoDirectionToken = true;
     }
 
     private final void writePhsResponseAck() {
@@ -89,9 +93,22 @@ public class SlotFromPlc implements UaResponseListener {
 
     private Scheduler plcExecutor;
     private Scheduler fluxExecutor;
+    private boolean twoDirectionToken = false;
 
     @Override
     public void onTokenChange() {
+        try {
+            Boolean tokenState = (Boolean) slotBase.getOpcUaClientProvider().getClient().getAddressSpace().getVariableNode(slotBase.getTokenId()).readValue().getValue().getValue();
+            logger.info("actual token state {}", tokenState);
+            while(tokenState != direction) {
+                logger.info("waiting for token state update");
+                Thread.sleep(20);
+                tokenState = (Boolean) slotBase.getOpcUaClientProvider().getClient().getAddressSpace().getVariableNode(slotBase.getTokenId()).readValue().getValue().getValue();
+                logger.info("actual token state {}", tokenState);
+            }
+        } catch (UaException | InterruptedException e) {
+            throw new RuntimeException(e);
+        }
         reader.onPlcRequest();
     }
 
@@ -197,7 +214,7 @@ public class SlotFromPlc implements UaResponseListener {
         }
         @Override
         public void onPlcRequest() {
-            if (! request.compareAndSet(null, requestReader.get()))
+            if (!request.compareAndSet(null, requestReader.get()) && !twoDirectionToken)
                 throw new IllegalStateException("PLC request before previous one has been read");
             fluxExecutor.schedule(this::proceedFluxRequests);
         }

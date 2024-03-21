@@ -43,7 +43,7 @@ public class OpcUaReader<T> implements Supplier<T> {
                 try {
                    // NodeId dataNode = new NodeId(slotBase.getNamespace(), "\"" + slotBase.getOpcUaName() + "\"." + "\"" + a.name() + "_" + slotBase.getSlotName() +  "\"");
                     NodeId dataNode = new NodeId(slotBase.getNamespace(), slotBase.getOpcUaName() + "\"" + a.name() + "_" + slotBase.getSlotName() +  "\"");
-                    System.out.println(dataNode);
+                    log.info("reading data: {}", dataNode);
                     return slotBase.getOpcUaClientProvider().getClient().getAddressSpace().getVariableNode(dataNode).readValue().getValue().getValue();
                 } catch (UaException e) {
                     throw new RuntimeException(e);

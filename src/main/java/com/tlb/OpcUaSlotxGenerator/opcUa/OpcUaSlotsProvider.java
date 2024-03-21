@@ -150,13 +150,13 @@ public class OpcUaSlotsProvider {
         slotsKeeper.addSlotToPlc(slotId, slotUsable);
         return slotUsable;
     }
-    public <Req> SlotFromPlcUsable<Req, Void> makeAckOnlySlotFromPlc(int slotId, InThreadScheduler mainScheduler, Class<Req> reqClass) throws SlotCreationException {
+    public <Req> SlotFromPlcUsable<Req, Object> makeAckOnlySlotFromPlc(int slotId, InThreadScheduler mainScheduler, Class<Req> reqClass) throws SlotCreationException {
         UaSlotBase slotBase = slotToAdd.get(slotId);
         if(slotBase == null)
             throw new SlotCreationException("No slot with id = " + slotId + " found on opc server");
         SlotFromPlc slot = new SlotFromPlc(slotBase, uaNotifierSingle);
         addSlotFromPlc(slot);
-        SlotFromPlcUsable<Req, Void> slotUsable = new SlotFromPlcUsable<>(
+        SlotFromPlcUsable<Req, Object> slotUsable = new SlotFromPlcUsable<>(
                 slot.makePublisher(new OpcUaReader<>(reqClass, slotBase), scheduler, reqClass),
                 slot.makeAckOnlySubscriber(mainScheduler),
                 reqClass,
@@ -196,6 +196,28 @@ public class OpcUaSlotsProvider {
                         reqClass,
                         respClass
                 );
+            slotsKeeper.addSlotFromPlc(slotId, slotUsable);
+            return slotUsable;
+        } catch (Exception e) {
+            throw new SlotCreationException(e.getMessage());
+        }
+    }
+    public <Req, Resp> SlotFromPlcUsable<Req, Resp>
+    makeTwoDirectionTokenSlotFromPlc(int slotId, InThreadScheduler mainScheduler, Class<Req> reqClass, Class<Resp> respClass) throws SlotCreationException, NoSuchMethodException {
+        try {
+            UaSlotBase slotBase = slotToAdd.get(slotId);
+            if(slotBase == null)
+                throw new SlotCreationException("No slot with id = " + slotId + " found on opc server");
+            SlotFromPlc slot = new SlotFromPlc(slotBase, uaNotifierSingle);
+            addSlotFromPlc(slot);
+            slot.makeTwoDirectionToken();
+            SlotFromPlcUsable<Req, Resp> slotUsable = null;
+            slotUsable = new SlotFromPlcUsable<>(
+                    slot.makePublisher(new OpcUaReader<>(reqClass, slotBase), scheduler, reqClass),
+                    slot.makeSubscriber(new OpcUaWriter<>(respClass, slotBase), mainScheduler),
+                    reqClass,
+                    respClass
+            );
             slotsKeeper.addSlotFromPlc(slotId, slotUsable);
             return slotUsable;
         } catch (Exception e) {

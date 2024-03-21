@@ -6,13 +6,33 @@ import com.tlb.OpcUaSlotxGenerator.opcUa.annnotations.OpcUaNode;
 
 import java.util.Random;
 
-public final class TrackId implements Comparable<TrackId> {
+public class TrackId implements Comparable<TrackId> {
 
 	@OpcUaNode(name = "TID_DATA")
-	private final short trackId;
+	private short trackId;
 
 	@JsonIgnore
-	private final String string;
+	private String string;
+
+	public TrackId() {
+	}
+
+	public void setTrackId(short trackId) {
+		this.trackId = trackId;
+	}
+
+	public String getString() {
+		return string;
+	}
+
+	public void setString(String string) {
+		this.string = string;
+	}
+
+	public TrackId(short trackId, String string) {
+		this.trackId = trackId;
+		this.string = string;
+	}
 
 	public TrackId(short trackId) {
 		this.trackId = trackId;
