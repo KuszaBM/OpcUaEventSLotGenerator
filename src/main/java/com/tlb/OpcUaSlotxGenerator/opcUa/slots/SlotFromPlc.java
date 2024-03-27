@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tlb.OpcUaSlotxGenerator.opcUa.UaNotifierSingle;
 import com.tlb.OpcUaSlotxGenerator.schedulers.InThreadScheduler;
-import org.eclipse.milo.opcua.stack.core.UaException;
 import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId;
 import org.eclipse.milo.opcua.stack.core.types.builtin.Variant;
 import org.reactivestreams.Publisher;
@@ -97,18 +96,18 @@ public class SlotFromPlc implements UaResponseListener {
 
     @Override
     public void onTokenChange() {
-        try {
-            Boolean tokenState = (Boolean) slotBase.getOpcUaClientProvider().getClient().getAddressSpace().getVariableNode(slotBase.getTokenId()).readValue().getValue().getValue();
-            logger.info("actual token state {}", tokenState);
-            while(tokenState != direction) {
-                logger.info("waiting for token state update");
-                Thread.sleep(20);
-                tokenState = (Boolean) slotBase.getOpcUaClientProvider().getClient().getAddressSpace().getVariableNode(slotBase.getTokenId()).readValue().getValue().getValue();
-                logger.info("actual token state {}", tokenState);
-            }
-        } catch (UaException | InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+//        try {
+//            Boolean tokenState = (Boolean) slotBase.getOpcUaClientProvider().getClient().getAddressSpace().getVariableNode(slotBase.getTokenId()).readValue().getValue().getValue();
+//            logger.info("actual token state {}", tokenState);
+//            while(tokenState != direction) {
+//                logger.info("waiting for token state update");
+//                Thread.sleep(20);
+//                tokenState = (Boolean) slotBase.getOpcUaClientProvider().getClient().getAddressSpace().getVariableNode(slotBase.getTokenId()).readValue().getValue().getValue();
+//                logger.info("actual token state {}", tokenState);
+//            }
+//        } catch (UaException | InterruptedException e) {
+//            throw new RuntimeException(e);
+//        }
         reader.onPlcRequest();
     }
 
@@ -310,6 +309,7 @@ public class SlotFromPlc implements UaResponseListener {
         @Override
         public void requestedPhsResponse() {
             plcExecutor.schedule(SlotFromPlc.this::writePhsResponseAck);
+
         }
 
     }

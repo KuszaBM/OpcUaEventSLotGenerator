@@ -102,27 +102,6 @@ public class OpcProcess {
         } catch (SlotCreationException | NoSuchMethodException e) {
             logger.info("error = ", e);
         }
-
-        //Slot 3 - 4 barcode - decision
-//        for(int i = 3; i < 5; i++) {
-//            final int slotId = i;
-//            try {
-//                SlotFromPlcUsable<BarcodeDecisionReq,
-//                        BarcodeDecisionResp> slot = slotsProvider.makeTwoDirectionSlotFromPlc(
-//                                i, mainScheduler, BarcodeDecisionReq.class, BarcodeDecisionResp.class
-//                );
-//                Flux.from(slot.getPublisher()).doOnNext((req) -> {
-//                    logger.info("new barcode decision Req BC: {} ", req.getBarcode());
-//                }).map((z) -> {
-//                    return new BarcodeDecisionResp((short) (System.currentTimeMillis() % 2 == 0 ? 1 : 2));
-//                }).doOnNext((a) -> {
-//                    logger.info("New Decision  response");
-//                  //  slotsProvider.activateSimSlot(slotId, a);
-//                }).subscribe(slot.getSubscriber());
-//            } catch (SlotCreationException | NoSuchMethodException e) {
-//                logger.info("jajko = ", e);
-//            }
-//
 //        }
         try {
             SlotFromPlcUsable<BarcodeDecisionReq,

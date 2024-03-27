@@ -1,5 +1,6 @@
 package com.tlb.OpcUaSlotxGenerator.opcUa;
 
+import com.google.common.collect.ImmutableList;
 import com.tlb.OpcUaSlotxGenerator.exceptions.SlotCreationException;
 import com.tlb.OpcUaSlotxGenerator.opcUa.slots.SlotFromPlc;
 import com.tlb.OpcUaSlotxGenerator.opcUa.slots.SlotToPlc;
@@ -12,11 +13,16 @@ import com.tlb.OpcUaSlotxGenerator.opcUa.slots.keeper.SlotToPlcUsable;
 import com.tlb.OpcUaSlotxGenerator.opcUa.slots.keeper.SlotsKeeper;
 import com.tlb.OpcUaSlotxGenerator.schedulers.InThreadScheduler;
 import com.tlb.OpcUaSlotxGenerator.websocket.SinksHolder;
+import org.eclipse.milo.opcua.sdk.client.OpcUaClient;
 import org.eclipse.milo.opcua.sdk.client.nodes.UaNode;
+import org.eclipse.milo.opcua.sdk.client.nodes.UaVariableNode;
+import org.eclipse.milo.opcua.stack.core.Identifiers;
 import org.eclipse.milo.opcua.stack.core.UaException;
 import org.eclipse.milo.opcua.stack.core.types.builtin.DataValue;
 import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId;
 import org.eclipse.milo.opcua.stack.core.types.builtin.unsigned.UByte;
+import org.eclipse.milo.opcua.stack.core.types.enumerated.ServerState;
+import org.eclipse.milo.opcua.stack.core.types.enumerated.TimestampsToReturn;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -28,6 +34,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 public class OpcUaSlotsProvider {
     private WebClient webClient;
@@ -223,6 +230,29 @@ public class OpcUaSlotsProvider {
         } catch (Exception e) {
             throw new SlotCreationException(e.getMessage());
         }
+    }
+    public void testRead() throws UaException {
+        UaVariableNode node = opcUaClientProvider.getClient().getAddressSpace().getVariableNode(Identifiers.Server_ServerStatus_StartTime);
+        DataValue value = node.readValue();
+
+        logger.info("StartTime={}", value.getValue().getValue());
+
+        // asynchronous read request
+        readServerStateAndTime(opcUaClientProvider.getClient()).thenAccept(values -> {
+            DataValue v0 = values.get(0);
+            DataValue v1 = values.get(1);
+
+            logger.info("State={}", ServerState.from((Integer) v0.getValue().getValue()));
+            logger.info("CurrentTime={}", v1.getValue().getValue());
+
+        });
+    }
+    private CompletableFuture<List<DataValue>> readServerStateAndTime(OpcUaClient client) {
+        List<NodeId> nodeIds = ImmutableList.of(
+                Identifiers.Server_ServerStatus_State,
+                Identifiers.Server_ServerStatus_CurrentTime);
+
+        return client.readValues(0.0, TimestampsToReturn.Both, nodeIds);
     }
     public void readServer2() throws UaException {
         logger.info("Reading info from server OpcUa");

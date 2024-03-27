@@ -7,6 +7,7 @@ import com.tlb.OpcUaSlotxGenerator.demo.slots.ToPlcResp;
 import com.tlb.OpcUaSlotxGenerator.opcUa.OpcUaSlotsProvider;
 import com.tlb.OpcUaSlotxGenerator.opcUa.slots.UaSlotBase;
 import com.tlb.OpcUaSlotxGenerator.opcUa.slots.gui.SlotGuiData;
+import org.eclipse.milo.opcua.stack.core.UaException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
@@ -29,6 +30,7 @@ public class GeneralController {
     @GetMapping("slots/all")
     public @ResponseBody Flux<SlotGuiData> getContainerList() {
         log.info("slots from provider - {} | {}", slotsProvider.getSlotToAdd().size(), slotsProvider);
+        log.info("");
         return Flux.fromIterable(slotsProvider.getSlotToAdd().values().stream().map(UaSlotBase::getSlotGuiData).toList());
     }
     @PostMapping("slots/request/{slotId}")
@@ -58,6 +60,16 @@ public class GeneralController {
                 slotsProvider.getSlotToPlc(slotId).forceSlotResponse(resp);
             }
             return "OK";
+    }
+    @PostMapping("test/callReads")
+    public String testRead() {
+        try {
+            log.info("calling");
+            slotsProvider.testRead();
+        } catch (UaException e) {
+            throw new RuntimeException(e);
+        }
+        return "OK";
     }
     @PostMapping("slots/requestOut/ackSlot/{slotId}")
     public String testForceIn(@PathVariable int slotId) {

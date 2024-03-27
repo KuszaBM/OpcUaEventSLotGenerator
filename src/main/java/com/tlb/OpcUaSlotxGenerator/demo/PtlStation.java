@@ -39,7 +39,7 @@ public class PtlStation {
                     throw new RuntimeException(e);
                 }
                 counter++;
-                if (counter > 350) {
+                if (counter > 150) {
                     completing = false;
                 }
             }
