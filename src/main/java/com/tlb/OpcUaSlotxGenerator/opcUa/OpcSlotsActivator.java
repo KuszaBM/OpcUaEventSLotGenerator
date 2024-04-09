@@ -1,22 +1,23 @@
 package com.tlb.OpcUaSlotxGenerator.opcUa;
 
 import com.tlb.OpcUaSlotxGenerator.opcUa.slots.UaResponseListener;
-import org.eclipse.milo.opcua.sdk.client.OpcUaClient;
 import org.eclipse.milo.opcua.stack.core.UaException;
 import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId;
 import org.eclipse.milo.opcua.stack.core.types.builtin.StatusCode;
 import org.eclipse.milo.opcua.stack.core.types.builtin.Variant;
 import org.eclipse.milo.opcua.stack.core.types.structured.CallMethodRequest;
+import org.eclipse.milo.opcua.stack.core.types.structured.CallMethodResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 
 public class OpcSlotsActivator {
     short arg = 2;
+    private int count;
     private OpcUaClientProvider clientProvider;
     private UaNotifierSingle uaNotifierSingle;
     Logger logger = LoggerFactory.getLogger(OpcSlotsActivator.class);
@@ -26,6 +27,7 @@ public class OpcSlotsActivator {
         this.uaNotifierSingle = uaNotifierSingle;
     }
     public void run() {
+        count = 1;
         while (!uaNotifierSingle.isInit()) {
             try {
                 logger.info("waiting for init of slots");
@@ -36,83 +38,51 @@ public class OpcSlotsActivator {
         }
         initialSlotCall();
         uaNotifierSingle.setInit(false);
-        startingAsk();
-    }
-    public void reRun() {
-        initialSlotCall();
-        startingAsk();
-    }
-    public void startingAsk() {
+        //startingAsk();
         try {
-            if(clientProvider.isConnected()) {
-                slotsCall(clientProvider.getActivatorClient(), arg).exceptionally(ex -> {
-                    logger.error("error invoking metchodcall()", ex);
-                    if (ex instanceof CompletionException) {
-                        logger.info("Connection error");
-                        clientProvider.closeConnections();
-                        logger.info("restarting connection");
-                        clientProvider.startConnection();
-                        try {
-                            Thread.sleep(5000);
-                        } catch (InterruptedException e) {
-                            throw new RuntimeException(e);
-                        }
-                        startingAsk();
-                    }
-
-                    Short[] x = new Short[1];
-                    x[0] = -1;
-                    return x;
-                }).thenAccept(v -> {
-                    logger.info("slots to activate | {}", v);
-                    if (v[0] != -1) {
-                        uaNotifierSingle.runByMethod(v);
-                    } else {
-                        logger.info("no slots to call");
-                    }
-                });
-            } else {
-                while (!clientProvider.isConnected()) {
-                    logger.info("No call - waiting for connection");
-                    Thread.sleep(1000);
-                }
-                startingAsk();
+            while (true) {
+                callMet();
             }
-        } catch (UaException e) {
+        } catch (Exception e) {
+            logger.info("error in method vcallin ", e);
+        }
+
+    }
+    public void callMet() {
+        NodeId objectId = new NodeId(3,"\"FB_OPC_COMMUNICATION_DB\"");
+        NodeId methodId = new NodeId(3,"\"FB_OPC_COMMUNICATION_DB\".Method");
+        short zz = 2;
+        short cc = 2;
+        CallMethodRequest request = new CallMethodRequest(
+                objectId, methodId, new Variant[]{new Variant(zz), new Variant(cc)});
+        CallMethodResult result = null;
+        try {
+            logger.info("xc2b - Id = {}", count);
+            result = clientProvider.getActivatorClient().call(request).get();
+        } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException(e);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+        }
+        StatusCode statusCode = result.getStatusCode();
+        logger.info("xc2b - method response for ID - {} | SC - {}", count, statusCode);
+        count ++;
+        if(statusCode.isGood()) {
+            Short[] resultArray = (Short[]) result.getOutputArguments()[1].getValue();
+            logger.info("slots to activate | {}", Arrays.toString(resultArray));
+            if (resultArray[0] != -1) {
+                uaNotifierSingle.runByMethod(resultArray);
+            } else {
+                logger.info("no slots to call");
+            }
+        } else {
+            logger.info("Error calling OPC method - {}", statusCode);
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
-    private CompletableFuture<Short[]> slotsCall(OpcUaClient client, short input) throws UaException {
-//        NodeId objectId = new NodeId(3,"\"OPC_UA_TESTY_DB\"");
-//        NodeId methodId = new NodeId(3,"\"OPC_UA_TESTY_DB\".Method");
-        NodeId objectId = new NodeId(2,"HelloWorld");
-        NodeId methodId = new NodeId(2,"HelloWorld/Method");
-        short zz = 2;
-//        CallMethodRequest request = new CallMethodRequest(
-//                objectId, methodId, new Variant[]{new Variant(input), new Variant(zz)});
-        CallMethodRequest request = new CallMethodRequest(
-                objectId, methodId, new Variant[]{new Variant(input)});
-        return client.call(request).thenCompose(result -> {
-            StatusCode statusCode = result.getStatusCode();
-            if (statusCode.isGood()) {
-                logger.info("result - {}", result.getOutputArguments()[0].getValue());
-                Short[] a = (Short[]) result.getOutputArguments()[0].getValue();
-                startingAsk();
-                return CompletableFuture.completedFuture(a);
-            } else {
-                StatusCode[] inputArgumentResults = result.getInputArgumentResults();
-                for (int i = 0; i < inputArgumentResults.length; i++) {
-                    logger.error("inputArgumentResults[{}]={}", i, inputArgumentResults[i]);
-                }
-                CompletableFuture<Short[]> f = new CompletableFuture<>();
-                f.completeExceptionally(new UaException(statusCode));
-                return f;
-            }
-        });
-    }
     public void initialSlotCall() {
         List<Short> slotsToCall = new ArrayList<>();
         Boolean token = false;
@@ -131,7 +101,6 @@ public class OpcSlotsActivator {
             }
         }
         Short[] out = slotsToCall.toArray(new Short[0]);
-        uaNotifierSingle.runByMethod(out);
         uaNotifierSingle.setInit(true);
     }
 }

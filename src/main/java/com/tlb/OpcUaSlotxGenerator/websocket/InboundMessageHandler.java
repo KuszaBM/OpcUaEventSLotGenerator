@@ -42,8 +42,6 @@ public class InboundMessageHandler {
             log.info("called request for slot {}", slotNo);
             if (slotsProvider.getSlotToAdd().get(slotNo).getSlotGuiData().getDirection().equals("OUT"))
                 slotsProvider.getSlotFromPlc(slotNo).forceReq(message.data);
-            if (slotsProvider.getSlotToAdd().get(slotNo).getSlotGuiData().getDirection().equals("IN"))
-                slotsProvider.getSlotToPlc(slotNo).forceSlotRequest(message.data);
         }
         if(message.type.contains("ACK-SLOT")) {
             slotNo = Integer.parseInt(message.type.split("-")[2]);
@@ -54,8 +52,6 @@ public class InboundMessageHandler {
         if(message.type.contains("RESPONSE-SLOT")) {
             slotNo = Integer.parseInt(message.type.split("-")[2]);
             log.info("called request for slot {}", slotNo);
-            if (slotsProvider.getSlotToAdd().get(slotNo).getSlotGuiData().getDirection().equals("IN"))
-                slotsProvider.getSlotToPlc(slotNo).forceSlotResponse(message.data);
         }
 
     }

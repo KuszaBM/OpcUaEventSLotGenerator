@@ -11,7 +11,6 @@ import com.tlb.OpcUaSlotxGenerator.opcUa.slots.gui.SlotGuiData;
 import com.tlb.OpcUaSlotxGenerator.opcUa.slots.keeper.SlotFromPlcUsable;
 import com.tlb.OpcUaSlotxGenerator.opcUa.slots.keeper.SlotToPlcUsable;
 import com.tlb.OpcUaSlotxGenerator.opcUa.slots.keeper.SlotsKeeper;
-import com.tlb.OpcUaSlotxGenerator.schedulers.InThreadScheduler;
 import com.tlb.OpcUaSlotxGenerator.websocket.SinksHolder;
 import org.eclipse.milo.opcua.sdk.client.OpcUaClient;
 import org.eclipse.milo.opcua.sdk.client.nodes.UaNode;
@@ -29,6 +28,8 @@ import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -51,7 +52,7 @@ public class OpcUaSlotsProvider {
     private String opcUaName;
     private int nameSpace;
     private final SlotsKeeper slotsKeeper;
-    private final InThreadScheduler scheduler;
+    private final Scheduler scheduler;
     Logger logger = LoggerFactory.getLogger(OpcUaSlotsProvider.class);
     private OpcUaSlotsProvider(String address, String opcUaName, int nameSpace, OpcUaClientProvider opcUaClientProvider, SinksHolder sinksHolder) {
         this.address = address;
@@ -61,7 +62,7 @@ public class OpcUaSlotsProvider {
         this.opcUaClientProvider = opcUaClientProvider;
         this.slotToAdd = new HashMap<>();
         this.afterInit = false;
-        this.scheduler = new InThreadScheduler("PLC");
+        this.scheduler = Schedulers.newSingle("PLC");
         this.slotFromPlcMap = new HashMap<>();
         this.slotToPlcMap = new HashMap<>();
         this.slotsKeeper = new SlotsKeeper();
@@ -91,8 +92,7 @@ public class OpcUaSlotsProvider {
             throw new RuntimeException(e);
         }
         afterInit = true;
-        propagateALlSlots();
-        scheduler.run();
+        //propagateALlSlots();
     }
 
     public void propagateALlSlots() {
@@ -147,7 +147,7 @@ public class OpcUaSlotsProvider {
             }
         }
     }
-    public <Req, Resp> SlotToPlcUsable<Req, Resp> makeSlotToPlc(int slotId, InThreadScheduler mainScheduler, Class<Req> reqClass, Class<Resp> respClass) throws SlotCreationException {
+    public <Req, Resp> SlotToPlcUsable<Req, Resp> makeSlotToPlc(int slotId, Scheduler mainScheduler, Class<Req> reqClass, Class<Resp> respClass) throws SlotCreationException {
         UaSlotBase slotBase = slotToAdd.get(slotId);
         if(slotBase == null)
             throw new SlotCreationException("No slot with id = " + slotId + " found on opc server");
@@ -157,7 +157,7 @@ public class OpcUaSlotsProvider {
         slotsKeeper.addSlotToPlc(slotId, slotUsable);
         return slotUsable;
     }
-    public <Req> SlotFromPlcUsable<Req, Object> makeAckOnlySlotFromPlc(int slotId, InThreadScheduler mainScheduler, Class<Req> reqClass) throws SlotCreationException {
+    public <Req> SlotFromPlcUsable<Req, Object> makeAckOnlySlotFromPlc(int slotId, Scheduler mainScheduler, Class<Req> reqClass) throws SlotCreationException {
         UaSlotBase slotBase = slotToAdd.get(slotId);
         if(slotBase == null)
             throw new SlotCreationException("No slot with id = " + slotId + " found on opc server");
@@ -172,13 +172,13 @@ public class OpcUaSlotsProvider {
         slotsKeeper.addSlotFromPlc(slotId, slotUsable);
         return slotUsable;
     }
-    public <Req> SlotFromPlcUsable<Req, ?> makeAutoAckSlotFromPlc(int slotId, InThreadScheduler mainScheduler, Class<Req> reqClass) throws SlotCreationException {
+    public <Req> SlotFromPlcUsable<Req, Object> makeAutoAckSlotFromPlc(int slotId, Scheduler mainScheduler, Class<Req> reqClass) throws SlotCreationException {
         UaSlotBase slotBase = slotToAdd.get(slotId);
         if(slotBase == null)
             throw new SlotCreationException("No slot with id = " + slotId + " found on opc server");
         SlotFromPlc slot = new SlotFromPlc(slotBase, uaNotifierSingle);
         addSlotFromPlc(slot);
-        SlotFromPlcUsable<Req, ?> slotUsable = new SlotFromPlcUsable<>(
+        SlotFromPlcUsable<Req, Object> slotUsable = new SlotFromPlcUsable<>(
                 slot.makePublisher(new OpcUaReader<>(reqClass, slotBase), scheduler, reqClass),
                 null,
                 reqClass,
@@ -189,7 +189,7 @@ public class OpcUaSlotsProvider {
         return slotUsable;
     }
     public <Req, Resp> SlotFromPlcUsable<Req, Resp>
-    makeTwoDirectionSlotFromPlc(int slotId, InThreadScheduler mainScheduler, Class<Req> reqClass, Class<Resp> respClass) throws SlotCreationException, NoSuchMethodException {
+    makeTwoDirectionSlotFromPlc(int slotId, Scheduler mainScheduler, Class<Req> reqClass, Class<Resp> respClass) throws SlotCreationException, NoSuchMethodException {
         try {
             UaSlotBase slotBase = slotToAdd.get(slotId);
             if(slotBase == null)
@@ -210,7 +210,7 @@ public class OpcUaSlotsProvider {
         }
     }
     public <Req, Resp> SlotFromPlcUsable<Req, Resp>
-    makeTwoDirectionTokenSlotFromPlc(int slotId, InThreadScheduler mainScheduler, Class<Req> reqClass, Class<Resp> respClass) throws SlotCreationException, NoSuchMethodException {
+    makeTwoDirectionTokenSlotFromPlc(int slotId, Scheduler mainScheduler, Class<Req> reqClass, Class<Resp> respClass) throws SlotCreationException, NoSuchMethodException {
         try {
             UaSlotBase slotBase = slotToAdd.get(slotId);
             if(slotBase == null)
@@ -272,7 +272,7 @@ public class OpcUaSlotsProvider {
         logger.info("Reading info from server OpcUa");
         ;
         String opcUaNameNodeFormat = "this.opcUaName";
-        NodeId nodeId = new NodeId(2, this.opcUaName);
+        NodeId nodeId = new NodeId(3, this.opcUaName);
         logger.info("aaa - {}", nodeId);
         List<UaNode> nodesList = List.of(opcUaClientProvider.getClient().getAddressSpace().getNode(nodeId));
         for(UaNode n : nodesList) {
@@ -288,7 +288,7 @@ public class OpcUaSlotsProvider {
         return slotToAdd;
     }
 
-    public InThreadScheduler getScheduler() {
+    public Scheduler getScheduler() {
         return scheduler;
     }
     public void setWebClient(WebClient webClient) {

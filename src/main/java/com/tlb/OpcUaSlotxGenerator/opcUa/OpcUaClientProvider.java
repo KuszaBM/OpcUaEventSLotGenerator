@@ -89,6 +89,22 @@ public class OpcUaClientProvider {
         return isConnected;
     }
 
+    public UaClient getC1() {
+        return c1;
+    }
+
+    public void setC1(UaClient c1) {
+        this.c1 = c1;
+    }
+
+    public UaClient getC2() {
+        return c2;
+    }
+
+    public void setC2(UaClient c2) {
+        this.c2 = c2;
+    }
+
     public OpcUaClient getClient() {
         return client;
     }

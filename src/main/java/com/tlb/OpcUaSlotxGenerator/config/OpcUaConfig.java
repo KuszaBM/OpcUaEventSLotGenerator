@@ -21,7 +21,7 @@ public class OpcUaConfig {
     }
     @Bean
     public OpcUaClientProvider opcUaClientProvider() {
-        OpcUaClientProvider clientProvider = OpcUaClientProvider.getInstance("opc.tcp://127.0.0.1:12686/milo/discovery", "PlcSim/slots", 2);
+        OpcUaClientProvider clientProvider = OpcUaClientProvider.getInstance("opc.tcp://192.168.19.121:4840", "\"PHS_COMM_DB\"", 3);
        // OpcUaClientProvider clientProvider = OpcUaClientProvider.getInstance("opc.tcp://192.168.19.121:4840", "PHS_OPC_COMM", 3);
         return clientProvider;
     }
@@ -36,11 +36,11 @@ public class OpcUaConfig {
 //                        3, opcUaClientProvider(), sinksHolder());
         OpcUaSlotsProvider provider =
                 OpcUaSlotsProvider.getInstance(
-                        "opc.tcp://127.0.0.1:12686/milo/discovery"
+                        "opc.tcp://192.168.19.121:4840"
                         ,
-                        "PlcSim/slots"
+                        "\"PHS_COMM_DB\""
                         ,
-                        2, opcUaClientProvider(), sinksHolder());
+                        3, opcUaClientProvider(), sinksHolder());
         UaNotifierSingle u = uaNotifierSingle();
         provider.setUaNotifierSingle(u);
 

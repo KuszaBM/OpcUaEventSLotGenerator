@@ -3,9 +3,7 @@ package com.tlb.OpcUaSlotxGenerator.opcUa.slots;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tlb.OpcUaSlotxGenerator.opcUa.UaNotifierSingle;
-import com.tlb.OpcUaSlotxGenerator.schedulers.InThreadScheduler;
 import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId;
-import org.eclipse.milo.opcua.stack.core.types.builtin.Variant;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
@@ -25,7 +23,7 @@ public class SlotFromPlc implements UaResponseListener {
         uaNotifierSingle.addSlotToNotifier(this);
     }
 
-    public <Req> Publisher<Req> makePublisher(Supplier<? extends Req> requestReader, InThreadScheduler plcExecutor, Class<Req> classReq) {
+    public <Req> Publisher<Req> makePublisher(Supplier<? extends Req> requestReader, Scheduler plcExecutor, Class<Req> classReq) {
         if (this.reader != null)
             throw new IllegalStateException("makePublisher already called");
         this.plcExecutor = plcExecutor;
@@ -36,7 +34,7 @@ public class SlotFromPlc implements UaResponseListener {
         return publisher;
     }
 
-    public <Resp> Subscriber<Resp> makeSubscriber(Consumer<? super Resp> responseWriter, InThreadScheduler fluxExecutor) {
+    public <Resp> Subscriber<Resp> makeSubscriber(Consumer<? super Resp> responseWriter, Scheduler fluxExecutor) {
         if (this.subscriber != null)
             throw new IllegalStateException("makeSubscriber or makeAckOnlySubscriber or makeAutoAck already called");
         this.fluxExecutor = fluxExecutor;
@@ -45,19 +43,13 @@ public class SlotFromPlc implements UaResponseListener {
         return subscriber;
     }
 
-    public Subscriber<Object> makeAckOnlySubscriber(InThreadScheduler fluxExecutor) {
+    public Subscriber<Object> makeAckOnlySubscriber(Scheduler fluxExecutor) {
         if (this.subscriber != null)
             throw new IllegalStateException("makeSubscriber or makeAckOnlySubscriber or makeAutoAck already called");
         this.fluxExecutor = fluxExecutor;
         SubscribingSlotResponder<Object> subscriber = new SubscribingSlotResponder<>(null);
         this.subscriber = subscriber;
         return subscriber;
-    }
-
-    public void makeAutoAck() {
-        if (this.subscriber != null)
-            throw new IllegalStateException("makeSubscriber or makeAckOnlySubscriber or makeAutoAck already called");
-        this.subscriber = new TrivialResponder();
     }
     public void makeAutoAck(Scheduler scheduler) {
         if (this.subscriber != null)
@@ -70,17 +62,7 @@ public class SlotFromPlc implements UaResponseListener {
     }
 
     private final void writePhsResponseAck() {
-        slotBase.getSlotGuiData().setDone();
-        slotBase.getSlotGuiData().propagateChange();
-        Variant writeValue = new Variant(false);
-        while(!slotBase.getOpcUaClientProvider().isConnected()) {
-            logger.info("Plc not connected : slot {} blocked", slotBase.getSlotId());
-            try {
-                Thread.sleep(3000);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        }
+        slotBase.writeSlotAck();
     }
     Logger logger = LoggerFactory.getLogger(SlotFromPlc.class);
     private ReaderBase reader;
@@ -111,22 +93,6 @@ public class SlotFromPlc implements UaResponseListener {
         reader.onPlcRequest();
     }
 
-    @Override
-    public boolean isActivated() {
-        return false;
-    }
-
-    @Override
-    public void forceSlotUnlock() {
-    }
-    @Override
-    public void forceSlotRequest(Object object) {
-
-    }
-    @Override
-    public void forceSlotResponse(Object object) {
-
-    }
 
     public UaNotifierSingle getUaNotifierSingle() {
         return uaNotifierSingle;
@@ -141,11 +107,6 @@ public class SlotFromPlc implements UaResponseListener {
         reader.forceRequest(req);
     }
     @Override
-    public void setListening(boolean listening) {
-        this.isListening = listening;
-    }
-
-    @Override
     public boolean getDirection() {
         return direction;
     }
@@ -158,11 +119,6 @@ public class SlotFromPlc implements UaResponseListener {
     @Override
     public int getSlotId() {
         return slotBase.getSlotId();
-    }
-
-    @Override
-    public boolean isListening() {
-        return isListening;
     }
 
     @Override
@@ -213,43 +169,45 @@ public class SlotFromPlc implements UaResponseListener {
         }
         @Override
         public void onPlcRequest() {
-            if (!request.compareAndSet(null, requestReader.get()) && !twoDirectionToken)
-                throw new IllegalStateException("PLC request before previous one has been read");
-            fluxExecutor.schedule(this::proceedFluxRequests);
+            plcExecutor.schedule(() -> {
+
+                logger.info("SLOT {} - scheduled action started - 1", slotBase.getSlotId());
+                if(slotBase.getInAckMode().get()) {
+                    request.set(null);
+                    slotBase.setInAckMode(false);
+                }
+                logger.info("SLOT {} - scheduled action started - 2", slotBase.getSlotId());
+                slotBase.checkResponseState();
+                logger.info("SLOT {} - scheduled action started - 3", slotBase.getSlotId());
+                Req req = requestReader.get();
+                logger.info("SLOT {} - scheduled action started - 4", slotBase.getSlotId());
+                if (!request.compareAndSet(null, req)) {
+                    logger.info("Exception o read or Duplicated request from PLC");
+                    return;
+                    //throw new IllegalStateException("PLC request before previous one has been read");
+                }
+                logger.info("SLOT {} - scheduled action started - 5", slotBase.getSlotId());
+                fluxExecutor.schedule(this::proceedFluxRequests);
+            });
+
         }
         public void forceRequest(Object req) {
             //sim PlcReading
            // Req holder = requestReader.get();
-
-            Req request1= null;
-            try {
-                ObjectMapper mapper = new ObjectMapper();
-                String reqAsJson = mapper.writeValueAsString(req);
-                logger.info("new force reguest - {}", reqAsJson);
-                request1 = (Req) mapper.readValue(reqAsJson, reqClass);
-                if (! request.compareAndSet(null, request1))
-                    throw new IllegalStateException("PLC request before previous one has been read");
-                fluxExecutor.schedule(this::proceedFluxRequests);
-            } catch (JsonProcessingException e) {
-                logger.info("Exception while mapping object - ", e);
-            }
         }
         private final synchronized void proceedFluxRequests() {
-            ObjectMapper mapper = new ObjectMapper();
+            logger.info("SLOT {} - scheduled action started - 6", slotBase.getSlotId());
             if (requestsCount > 0) {
+                logger.info("SLOT {} - scheduled action started - 7", slotBase.getSlotId());
                 Req req = request.getAndSet(null);
                 if (req != null) {
+                    logger.info("SLOT {} - scheduled action started - 8", slotBase.getSlotId());
                     if (requestsCount < Long.MAX_VALUE)
                         requestsCount--;
                     SlotFromPlc.this.subscriber.requestedPhsResponse();
-                    try {
-                        slotBase.getSlotGuiData().newRequest(new SlotRequest(1,mapper.writeValueAsString(req)));
-                        slotBase.getSlotGuiData().setCurrentData(mapper.writeValueAsString(req));
-                        slotBase.getSlotGuiData().propagateChange();
-                    } catch (JsonProcessingException e) {
-                        throw new RuntimeException(e);
-                    }
+                    logger.info("SLOT {} - scheduled action started - 9", slotBase.getSlotId());
                     subscriber.onNext(req);
+                    logger.info("SLOT {} - scheduled action started - 10", slotBase.getSlotId());
                 }
             }
         }
@@ -309,6 +267,7 @@ public class SlotFromPlc implements UaResponseListener {
         @Override
         public void requestedPhsResponse() {
             plcExecutor.schedule(SlotFromPlc.this::writePhsResponseAck);
+
 
         }
 

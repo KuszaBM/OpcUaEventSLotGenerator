@@ -1,7 +1,6 @@
 package com.tlb.OpcUaSlotxGenerator.opcUa;
 
 import com.tlb.OpcUaSlotxGenerator.opcUa.annnotations.OpcUaNode;
-import com.tlb.OpcUaSlotxGenerator.opcUa.slots.SlotType;
 import com.tlb.OpcUaSlotxGenerator.opcUa.slots.UaSlotBase;
 import org.eclipse.milo.opcua.stack.core.types.builtin.DataValue;
 import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId;
@@ -35,7 +34,9 @@ public class OpcUaWriter <T> implements Consumer<T> {
             String s2 = a.name().isEmpty() ?
                     "\"" + f.getName() + "_" + slotBase.getSlotName() +  "\"" :
                     "\"" + a.name() + "_" + slotBase.getSlotName() +  "\"";
-            NodeId node = new NodeId(slotBase.getNamespace(), s + s2);
+            NodeId node = new NodeId(slotBase.getNamespace(), s + "." + s2);
+
+            logger.info("--- writing node - {} ", node);
 
             f.setAccessible(true);
             writes.add((t)->{
@@ -54,8 +55,8 @@ public class OpcUaWriter <T> implements Consumer<T> {
 
         }
     }
-    @Override
-    public void accept(T t) {
+
+    private void waitIfNoConnection() {
         while (!slotBase.getOpcUaClientProvider().isConnected()) {
             logger.info("Slot {} blocked - waiting for connection", slotBase.getSlotId());
             try {
@@ -64,38 +65,25 @@ public class OpcUaWriter <T> implements Consumer<T> {
                 throw new RuntimeException(ex);
             }
         }
+    }
+    @Override
+    public void accept(T t) {
+        waitIfNoConnection();
         try {
             for (Consumer<T> c : writes)
                 c.accept(t);
-            boolean b = this.slotBase.getSlotType().equals(SlotType.ToPlc);
-            Variant writeValue = new Variant(b);
-            DataValue dataValue = DataValue.valueOnly(writeValue);
-            CompletableFuture<StatusCode> status = slotBase.getOpcUaClientProvider().getClient().writeValue(tokenId, dataValue);
-            logger.info("Send to Opc - {} | Response - {}", writeValue, status.get());
+
+            slotBase.writeSlotAck();
+//            boolean b = this.slotBase.getSlotType().equals(SlotType.ToPlc);
+//            Variant writeValue = new Variant(b);
+//            DataValue dataValue = DataValue.valueOnly(writeValue);
+//            CompletableFuture<StatusCode> status = slotBase.getOpcUaClientProvider().getClient().writeValue(tokenId, dataValue);
+//            logger.info("Send to Opc - {} | Response - {}", writeValue, status.get());
         } catch (Exception e) {
             logger.info("Exception while writing to PLC - Connection state: {}", slotBase.getOpcUaClientProvider().isConnected() ? "Connected" : "Not Connected");
             logger.info("MES - ", e);
-            while (!slotBase.getOpcUaClientProvider().isConnected()) {
-                logger.info("Slot {} blocked - waiting for connection", slotBase.getSlotId());
-                try {
-                    Thread.sleep(3000);
-                } catch (InterruptedException ex) {
-                    throw new RuntimeException(ex);
-                }
-                for (Consumer<T> c : writes)
-                    c.accept(t);
-                boolean b = this.slotBase.getSlotType().equals(SlotType.ToPlc);
-                Variant writeValue = new Variant(b);
-                DataValue dataValue = DataValue.valueOnly(writeValue);
-                CompletableFuture<StatusCode> status = slotBase.getOpcUaClientProvider().getClient().writeValue(tokenId, dataValue);
-                try {
-                    logger.info("Send to Opc - {} | Response - {}", writeValue, status.get());
-                } catch (InterruptedException ex) {
-                    throw new RuntimeException(ex);
-                } catch (ExecutionException ex) {
-                    throw new RuntimeException(ex);
-                }
-            }
+            waitIfNoConnection();
+            slotBase.writeSlotAck();
         }
         logger.info("Finished writers write to Opc");
     }

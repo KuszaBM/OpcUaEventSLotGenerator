@@ -1,9 +1,6 @@
 package com.tlb.OpcUaSlotxGenerator.controller;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tlb.OpcUaSlotxGenerator.config.OpcUaConfig;
-import com.tlb.OpcUaSlotxGenerator.demo.slots.ToPlcResp;
 import com.tlb.OpcUaSlotxGenerator.opcUa.OpcUaSlotsProvider;
 import com.tlb.OpcUaSlotxGenerator.opcUa.slots.UaSlotBase;
 import com.tlb.OpcUaSlotxGenerator.opcUa.slots.gui.SlotGuiData;
@@ -40,27 +37,27 @@ public class GeneralController {
             slotsProvider.getSlotFromPlc(slotId).forceReq(req);
         return "OK";
     }
-    @PostMapping("slots/requestOut/{slotId}")
-    public String testForceOut(@RequestBody ToPlcResp req, @PathVariable int slotId) {
-        if (slotsProvider.getSlotToAdd().get(slotId).getSlotGuiData().getDirection().equals("IN")) {
-            slotsProvider.getSlotToPlc(slotId).forceSlotRequest(req);
-            ObjectMapper mapper = new ObjectMapper();
-            try {
-                log.info("new force request - {}", mapper.writeValueAsString(req));
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
-            }
-        }
-        return "OK";
-    }
-    @PostMapping("slots/requestOut/forceResp/{slotId}")
-    public String testForceIn(@RequestBody Object resp, @PathVariable int slotId) {
-            if (slotsProvider.getSlotToAdd().get(slotId).getSlotGuiData().getDirection().equals("IN")) {
-                log.info("new force unlock slot {}", slotId);
-                slotsProvider.getSlotToPlc(slotId).forceSlotResponse(resp);
-            }
-            return "OK";
-    }
+//    @PostMapping("slots/requestOut/{slotId}")
+//    public String testForceOut(@RequestBody ToPlcResp req, @PathVariable int slotId) {
+//        if (slotsProvider.getSlotToAdd().get(slotId).getSlotGuiData().getDirection().equals("IN")) {
+//            slotsProvider.getSlotToPlc(slotId).forceSlotRequest(req);
+//            ObjectMapper mapper = new ObjectMapper();
+//            try {
+//                log.info("new force request - {}", mapper.writeValueAsString(req));
+//            } catch (JsonProcessingException e) {
+//                throw new RuntimeException(e);
+//            }
+//        }
+//        return "OK";
+//    }
+//    @PostMapping("slots/requestOut/forceResp/{slotId}")
+//    public String testForceIn(@RequestBody Object resp, @PathVariable int slotId) {
+//            if (slotsProvider.getSlotToAdd().get(slotId).getSlotGuiData().getDirection().equals("IN")) {
+//                log.info("new force unlock slot {}", slotId);
+//                slotsProvider.getSlotToPlc(slotId).forceSlotResponse(resp);
+//            }
+//            return "OK";
+//    }
     @PostMapping("test/callReads")
     public String testRead() {
         try {

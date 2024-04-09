@@ -8,7 +8,7 @@ import java.util.Random;
 
 public class TrackId implements Comparable<TrackId> {
 
-	@OpcUaNode(name = "TID_DATA")
+	@OpcUaNode(name = "SORTER_TID_DATA")
 	private short trackId;
 
 	@JsonIgnore

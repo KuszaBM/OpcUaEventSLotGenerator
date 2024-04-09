@@ -70,12 +70,6 @@ public class TrackIdsPublisher implements Publisher<TrackId> {
 	private final void action() {
 		actionQueued = false;
 		while (! subscriptionsQueue.isEmpty()) {
-
-			try {
-				Thread.sleep(400);
-			} catch (InterruptedException e) {
-				throw new RuntimeException(e);
-			}
 			TrackId tid = getNextTrackId();
 			if (tid == null)
 				return;
@@ -106,12 +100,9 @@ public class TrackIdsPublisher implements Publisher<TrackId> {
 		Random r = new Random(12);
 		TrackId last = lastTrackId;
 		lastTrackId = lastTrackId.nextTrackId();
-		while (lastTrackId != last) {
-			if (trackIdsInUse.add(lastTrackId))
-				return lastTrackId;
-		}
-		logger.warn("No more TrackId");
-		return null;
+		return lastTrackId;
+//		logger.warn("No more TrackId");
+//		return null;
 	}
 
 	private final Consumer<TrackId> releasingConsumer = new Consumer<TrackId>() {

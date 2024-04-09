@@ -21,6 +21,7 @@ public class OpcSlotsService {
     private final Thread processThread;
     private final Thread opcClientProviderThread;
     private final Thread opcSlotsProviderThread;
+    private Thread opcActivatorThread;
 
     private OpcSlotsActivator opcSlotsActivator;
 
@@ -40,6 +41,7 @@ public class OpcSlotsService {
         this.opcClientProviderThread.setName("Opc_Client_Provider_Thread");
         this.opcSlotsProviderThread = new Thread(this.opcUaSlotsProvider::initialStart);
         this.opcSlotsProviderThread.setName("Opc_Slots_Provider_Thread");
+
 
 
 
@@ -66,6 +68,10 @@ public class OpcSlotsService {
             }
         }
         processThread.start();
-        opcSlotsActivator.run();
+        this.opcActivatorThread = new Thread(() -> {
+            opcSlotsActivator.run();
+        });
+        opcActivatorThread.setName("OPC_METHOD_THREAD");
+        opcActivatorThread.start();
     }
 }

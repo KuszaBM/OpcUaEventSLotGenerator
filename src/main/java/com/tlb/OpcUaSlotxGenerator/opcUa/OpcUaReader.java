@@ -17,9 +17,11 @@ public class OpcUaReader<T> implements Supplier<T> {
     private NodeId tokenId;
     private T item;
     Logger log = LoggerFactory.getLogger(OpcUaReader.class);
+    private UaSlotBase slotBase;
 
     public OpcUaReader(Class<T> cls, UaSlotBase slotBase) {
         tokenId = slotBase.getTokenId();
+        this.slotBase = slotBase;
         Constructor<?> foundCtor = null;
         for(Constructor<?> ctor : cls.getDeclaredConstructors()) {
             if (ctor.getAnnotation(OpcUaConstructor.class) == null) continue;
@@ -41,15 +43,17 @@ public class OpcUaReader<T> implements Supplier<T> {
                 throw new IllegalArgumentException("Name for all constructor parameters need to be defined");
             paramReaders[idx] = () -> {
                 try {
-                   // NodeId dataNode = new NodeId(slotBase.getNamespace(), "\"" + slotBase.getOpcUaName() + "\"." + "\"" + a.name() + "_" + slotBase.getSlotName() +  "\"");
-                    NodeId dataNode = new NodeId(slotBase.getNamespace(), slotBase.getOpcUaName() + "\"" + a.name() + "_" + slotBase.getSlotName() +  "\"");
+                    NodeId dataNode = new NodeId(slotBase.getNamespace(),slotBase.getOpcUaName() + "." + "\"" + a.name() + "_" + slotBase.getSlotName() +  "\"");
+//                    NodeId dataNode = new NodeId(slotBase.getNamespace(), slotBase.getOpcUaName() + "\"" + a.name() + "_" + slotBase.getSlotName() +  "\"");
                     log.info("reading data: {}", dataNode);
                     return slotBase.getOpcUaClientProvider().getClient().getAddressSpace().getVariableNode(dataNode).readValue().getValue().getValue();
                 } catch (UaException e) {
-                    throw new RuntimeException(e);
+                    log.info("SLOT {} - Exception while reading request data - ", slotBase.getSlotId(), e);
+                    return null;
                 }
             };
         }
+
     }
 
     @Override
@@ -58,9 +62,11 @@ public class OpcUaReader<T> implements Supplier<T> {
         try {
             for (int idx =0; idx < paramReaders.length; ++idx)
                 params[idx] = paramReaders[idx].get();
+            log.info("SLOT {} - reader completed", slotBase.getSlotId());
             return (T) constructor.newInstance(params);
         } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
-            throw new RuntimeException(e);
+            log.info("SLOT {} - reader completed with error - ", slotBase.getSlotId(), e);
+            return null;
         }
     }
     private final Supplier<Object>[] paramReaders;

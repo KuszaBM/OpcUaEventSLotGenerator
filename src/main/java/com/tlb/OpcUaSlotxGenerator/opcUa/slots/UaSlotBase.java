@@ -3,11 +3,18 @@ package com.tlb.OpcUaSlotxGenerator.opcUa.slots;
 import com.tlb.OpcUaSlotxGenerator.opcUa.OpcUaClientProvider;
 import com.tlb.OpcUaSlotxGenerator.opcUa.slots.gui.SLotGuiPropagator;
 import com.tlb.OpcUaSlotxGenerator.opcUa.slots.gui.SlotGuiData;
+import org.eclipse.milo.opcua.stack.core.UaException;
+import org.eclipse.milo.opcua.stack.core.types.builtin.DataValue;
 import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId;
+import org.eclipse.milo.opcua.stack.core.types.builtin.StatusCode;
+import org.eclipse.milo.opcua.stack.core.types.builtin.Variant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class UaSlotBase {
     public SlotGuiData getSlotGuiData() {
@@ -20,6 +27,7 @@ public class UaSlotBase {
     private SlotType slotType;
     private OpcUaClientProvider opcUaClientProvider;
     private SlotGuiData slotGuiData;
+    private AtomicBoolean inAckMode = new AtomicBoolean(false);
     private int slotNo;
     private String slotName;
     private String opcUaName;
@@ -48,8 +56,73 @@ public class UaSlotBase {
         this.slotGuiData = new SlotGuiData(slotId, SlotType.ToPlc.equals(type) ? "IN" : "OUT", propagator);
     }
 
+    public void checkResponseState() {
+        int count = 0;
+        boolean tokenAckValue = getSlotType().equals(SlotType.ToPlc);
+        try {
+            boolean opcTokenState = (Boolean) getOpcUaClientProvider().getClient().getAddressSpace().getVariableNode(tokenId).readValue().getValue().getValue();
+            while (opcTokenState == tokenAckValue) {
+                if(count == 100)
+                    count = 0;
+                if(count == 0) {
+                    logger.info("SLOT {} - OPC token state not ready for read - {}",slotId, opcTokenState);
+                }
+                try {
+                    Thread.sleep(20);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+                opcTokenState = (Boolean) getOpcUaClientProvider().getClient().getAddressSpace().getVariableNode(tokenId).readValue().getValue().getValue();
+                count++;
+            }
+
+        } catch (UaException e) {
+            logger.info("Exception reading OPC - ", e);
+        }
+        logger.info("SLOT {} - token call value legit", slotId);
+    }
+
+    public void writeSlotAck() {
+        try {
+            setInAckMode(true);
+            boolean tokenAckValue = getSlotType().equals(SlotType.ToPlc);
+            Variant writeValue = new Variant(tokenAckValue);
+            DataValue dataValue = DataValue.valueOnly(writeValue);
+            CompletableFuture<StatusCode> statusCompletable = getOpcUaClientProvider().getClient().writeValue(tokenId, dataValue);
+            StatusCode statusCode = statusCompletable.get();
+            logger.info("SLOT {} - Token ack to opc value - {} | Response - {}",slotId, writeValue, statusCode);
+            boolean opcTokenState = (Boolean) getOpcUaClientProvider().getClient().getAddressSpace().getVariableNode(tokenId).readValue().getValue().getValue();
+            logger.info("SLOT {} - Token state after write - {}", slotId, opcTokenState);
+            if(opcTokenState != tokenAckValue) {
+                logger.info("Writing token not done ");
+                while (opcTokenState != tokenAckValue) {
+                    Thread.sleep(20);
+                    if(!inAckMode.get()) {
+                        logger.info("token change received by PLC - BREAK");
+                        break;
+                    }
+                    CompletableFuture<StatusCode> rewriteStatusCompletable = getOpcUaClientProvider().getClient().writeValue(tokenId, dataValue);
+                    StatusCode rewriteStatus = rewriteStatusCompletable.get();
+                    logger.info("SLOT {} - Renew Token ack to opc value - {} | Response - {}",slotId, writeValue, rewriteStatus);
+                    opcTokenState = (Boolean) getOpcUaClientProvider().getClient().getAddressSpace().getVariableNode(tokenId).readValue().getValue().getValue();
+                    logger.info("SLOT {} - Renew Token state after write - {}", slotId, opcTokenState);
+                }
+            }
+            setInAckMode(false);
+            logger.info("SLOT {} - finished ", slotId);
+
+        } catch (InterruptedException | ExecutionException | UaException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+
     //Getters & Setters
 
+    public void setInAckMode(boolean tokenState) {
+        logger.info("Setting inAckMode for SLOT {} | {} --> {}", slotId, inAckMode.get(), tokenState);
+        this.inAckMode.set(tokenState);
+    }
     public int getSlotNo() {
         return slotNo;
     }
@@ -84,5 +157,9 @@ public class UaSlotBase {
     }
     public OpcUaClientProvider getOpcUaClientProvider() {
         return opcUaClientProvider;
+    }
+
+    public AtomicBoolean getInAckMode() {
+        return inAckMode;
     }
 }
