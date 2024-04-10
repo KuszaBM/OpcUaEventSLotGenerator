@@ -157,25 +157,20 @@ public class SlotToPlc implements UaResponseListener {
 
         @Override
         public void onTokenChange() {
+            if(slotBase.getInAckMode().get()) {
+                log.info("SLOT {} - new request Before old one write complete", slotBase.getSlotId());
+                response.set(null);
+                slotBase.setInAckMode(false);
+            }
             plcExecutor.schedule(() -> {
-                log.info("SLOT {} - scheduled action started - 1", slotBase.getSlotId());
-                if(slotBase.getInAckMode().get()) {
-                    log.info("SLOT {} - new request Before old one write complete", slotBase.getSlotId());
-                    response.set(null);
-                    slotBase.setInAckMode(false);
-                }
-                log.info("SLOT {} - scheduled action started - 2", slotBase.getSlotId());
                 slotBase.checkResponseState();
-                log.info("SLOT {} - scheduled action started - 3", slotBase.getSlotId());
                 fluxExecutor.schedule(() -> {
-                    log.info("SLOT {} - scheduled action started - 4", slotBase.getSlotId());
                     Resp resp = responseReader.get();
                     if (! response.compareAndSet(null, resp)) {
                         log.info("Exception o read or Duplicated request from PLC");
                         log.info("New response from PLC but previous one has not been handled");
                         return;
                         }
-                    log.info("SLOT {} - scheduled action started - 5", slotBase.getSlotId());
                     proceedFluxSubscription();
                 });
             });
@@ -213,26 +208,20 @@ public class SlotToPlc implements UaResponseListener {
 
         private final synchronized void proceedFluxSubscription() {
             try {
-                log.info("SLOT {} - scheduled action started - 5.1", slotBase.getSlotId());
                 if (requestedFluxResponses > 0) {
-                    log.info("SLOT {} - scheduled action started - 6", slotBase.getSlotId());
                     Resp resp = response.getAndSet(null);
                     if (resp != null) {
-                        log.info("SLOT {} - scheduled action started - 7", slotBase.getSlotId());
                         if (requestedFluxResponses < Long.MAX_VALUE)
                             requestedFluxResponses--;
                         inRequest.set(false);
                         if(this.subscriber != null) {
-                            log.info("SLOT {} - scheduled action started - 8", slotBase.getSlotId());
                             this.subscriber.onNext(resp);
                         }
-                        log.info("SLOT {} - scheduled action started - 9", slotBase.getSlotId());
                         this.subscription.request(1);
-                        log.info("SLOT {} - scheduled action started - 10", slotBase.getSlotId());
                     }
                 }
             } catch (Exception e) {
-                log.info("EX 14 - ", e);
+                log.info("EX - ", e);
             }
 
         }
@@ -253,7 +242,6 @@ public class SlotToPlc implements UaResponseListener {
                         requestedFluxResponses += n;
                     else
                         requestedFluxResponses = n;
-                    log.info("SLOT {} - scheduled action started - 19", slotBase.getSlotId());
                     proceedFluxSubscription();
                 }
 

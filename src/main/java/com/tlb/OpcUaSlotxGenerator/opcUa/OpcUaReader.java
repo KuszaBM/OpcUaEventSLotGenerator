@@ -45,7 +45,6 @@ public class OpcUaReader<T> implements Supplier<T> {
                 try {
                     NodeId dataNode = new NodeId(slotBase.getNamespace(),slotBase.getOpcUaName() + "." + "\"" + a.name() + "_" + slotBase.getSlotName() +  "\"");
 //                    NodeId dataNode = new NodeId(slotBase.getNamespace(), slotBase.getOpcUaName() + "\"" + a.name() + "_" + slotBase.getSlotName() +  "\"");
-                    log.info("reading data: {}", dataNode);
                     return slotBase.getOpcUaClientProvider().getClient().getAddressSpace().getVariableNode(dataNode).readValue().getValue().getValue();
                 } catch (UaException e) {
                     log.info("SLOT {} - Exception while reading request data - ", slotBase.getSlotId(), e);
@@ -62,7 +61,6 @@ public class OpcUaReader<T> implements Supplier<T> {
         try {
             for (int idx =0; idx < paramReaders.length; ++idx)
                 params[idx] = paramReaders[idx].get();
-            log.info("SLOT {} - reader completed", slotBase.getSlotId());
             return (T) constructor.newInstance(params);
         } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
             log.info("SLOT {} - reader completed with error - ", slotBase.getSlotId(), e);

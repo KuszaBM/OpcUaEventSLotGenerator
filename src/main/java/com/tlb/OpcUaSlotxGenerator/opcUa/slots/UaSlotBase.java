@@ -79,7 +79,6 @@ public class UaSlotBase {
         } catch (UaException e) {
             logger.info("Exception reading OPC - ", e);
         }
-        logger.info("SLOT {} - token call value legit", slotId);
     }
 
     public void writeSlotAck() {

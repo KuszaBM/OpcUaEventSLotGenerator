@@ -6,6 +6,8 @@ import org.eclipse.milo.opcua.stack.core.UaException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.ExecutionException;
+
 public class OpcUaClientProvider {
     private static OpcUaClientProvider instance;
     private OpcUaClient client;
@@ -40,6 +42,22 @@ public class OpcUaClientProvider {
         }
     }
 
+    public void restartActivatorClient() {
+        logger.info("Restarting activator client - {}", this.activatorClient);
+        try {
+            this.activatorClient.disconnect().get();
+        } catch (InterruptedException | ExecutionException e) {
+            logger.info("error on dc");
+        }
+        try {
+            this.activatorClient = OpcUaClient.create(address);
+            this.activatorClient.connect().get();
+            logger.info("New activator client crated - {}", this.activatorClient);
+        } catch (UaException | InterruptedException | ExecutionException e) {
+            logger.info("dupsko 12 - ", e);
+        }
+    }
+
     public void startConnection() {
         logger.info("Starting new connection");
         if(con != null) {
@@ -62,8 +80,8 @@ public class OpcUaClientProvider {
                 throw new RuntimeException(e);
             }
             try {
-                this.c1 = this.client.connect().get();
-                this.c2 = this.activatorClient.connect().get();
+                this.client.connect().get();
+                this.activatorClient.connect().get();
                 logger.warn("OPCUA connection established");
                 con = Thread.currentThread();
                 this.isConnected = true;
@@ -77,7 +95,7 @@ public class OpcUaClientProvider {
                 }
                 startConnection();
             }
-        });
+        }, "OPC-CONNECTION");
         t.start();
     }
 

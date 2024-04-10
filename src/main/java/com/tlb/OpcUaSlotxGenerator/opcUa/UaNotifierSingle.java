@@ -23,10 +23,11 @@ public class UaNotifierSingle {
         return instance;
     }
     public void addSlotToNotifier(UaResponseListener slot) {
+        logger.info("ADDING TO NOTIFIER SLOT {}", slot.getSlotId());
         slots.put(slot.getSlotId(), slot);
     }
     private void activateSlot(UaResponseListener slot) {
-        logger.info("trig for slot - {} ", slot.getName());
+        logger.info("SLOT {} - TRIGGER", slot.getSlotId());
         slot.onTokenChange();
     }
     public void runByMethod(Short[] slotsToRun) {

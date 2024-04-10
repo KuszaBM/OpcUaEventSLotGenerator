@@ -10,7 +10,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -51,9 +50,6 @@ public class OpcUaWriter <T> implements Consumer<T> {
                 }
             });
         }
-        for (Method m : cls.getDeclaredMethods()) {
-
-        }
     }
 
     private void waitIfNoConnection() {
@@ -74,11 +70,7 @@ public class OpcUaWriter <T> implements Consumer<T> {
                 c.accept(t);
 
             slotBase.writeSlotAck();
-//            boolean b = this.slotBase.getSlotType().equals(SlotType.ToPlc);
-//            Variant writeValue = new Variant(b);
-//            DataValue dataValue = DataValue.valueOnly(writeValue);
-//            CompletableFuture<StatusCode> status = slotBase.getOpcUaClientProvider().getClient().writeValue(tokenId, dataValue);
-//            logger.info("Send to Opc - {} | Response - {}", writeValue, status.get());
+
         } catch (Exception e) {
             logger.info("Exception while writing to PLC - Connection state: {}", slotBase.getOpcUaClientProvider().isConnected() ? "Connected" : "Not Connected");
             logger.info("MES - ", e);
