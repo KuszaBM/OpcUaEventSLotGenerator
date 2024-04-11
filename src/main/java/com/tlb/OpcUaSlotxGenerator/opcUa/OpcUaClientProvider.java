@@ -1,7 +1,6 @@
 package com.tlb.OpcUaSlotxGenerator.opcUa;
 
 import org.eclipse.milo.opcua.sdk.client.OpcUaClient;
-import org.eclipse.milo.opcua.sdk.client.api.UaClient;
 import org.eclipse.milo.opcua.stack.core.UaException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,34 +11,26 @@ public class OpcUaClientProvider {
     private static OpcUaClientProvider instance;
     private OpcUaClient client;
     private OpcUaClient activatorClient;
-    private UaClient c1;
-    private UaClient c2;
     Thread con;
     private boolean isConnected;
     private String address;
     private String opcUaName;
     private int nameSpace;
+    private boolean simulation;
     Logger logger = LoggerFactory.getLogger(OpcUaClientProvider.class);
 
-    private OpcUaClientProvider(String address, String opcUaName, int nameSpace) {
+    private OpcUaClientProvider(String address, String opcUaName, int nameSpace, boolean simulation) {
         this.address = address;
         this.opcUaName = opcUaName;
         this.nameSpace = nameSpace;
         this.isConnected = false;
+        this.simulation = simulation;
     }
-    public static OpcUaClientProvider getInstance(String address, String opcUaName, int nameSpace) {
+    public static OpcUaClientProvider getInstance(String address, String opcUaName, int nameSpace, boolean simulation) {
         if (instance == null) {
-            instance = new OpcUaClientProvider(address, opcUaName, nameSpace);
+            instance = new OpcUaClientProvider(address, opcUaName, nameSpace, simulation);
         }
         return instance;
-    }
-    public void closeConnections() {
-        isConnected = false;
-        try {
-            c1.disconnect().get();
-        } catch (Exception e) {
-            logger.info("connection down - ", e);
-        }
     }
 
     public void restartActivatorClient() {
@@ -105,22 +96,6 @@ public class OpcUaClientProvider {
 
     public boolean isConnected() {
         return isConnected;
-    }
-
-    public UaClient getC1() {
-        return c1;
-    }
-
-    public void setC1(UaClient c1) {
-        this.c1 = c1;
-    }
-
-    public UaClient getC2() {
-        return c2;
-    }
-
-    public void setC2(UaClient c2) {
-        this.c2 = c2;
     }
 
     public OpcUaClient getClient() {

@@ -33,11 +33,105 @@ public class OpcProcess {
         this.phsHandler = phsHandler;
         this.mainScheduler = Schedulers.newSingle("Process");
     }
-    public void start() {
 
+    public void st11() {
+
+        WeightingPoint scale1 = new WeightingPoint() {
+            @Override
+            public Flux<Float> getResultFlux() {
+                return null;
+            }
+
+            @Override
+            public void setWeighting(boolean isWeighting) {
+
+            }
+
+            @Override
+            public void newWeightingRequest(short tid) {
+
+            }
+        };
+
+        TrackIdProvider trackIdProvider = new TrackIdProvider();
+
+        //Slot 1
+        try {
+            TrackIdsPublisher trackIdsPublisher = new TrackIdsPublisher(logger, mainScheduler, trackIdProvider);
+            trackIdsPublisher.retrievingDone();
+            Flux<TrackId> trackIdFlux = Flux.from(trackIdsPublisher).doOnNext((tid) -> {
+                logger.info("new trackId - {} -> plc", tid.nextTrackId());
+                // slotsProvider.activateSimSlot(1, tid);
+            });
+            SlotToPlcUsable<TrackId, TrackIdResponse> slot = slotsProvider.makeSlotToPlc(1, mainScheduler, TrackId.class, TrackIdResponse.class);
+
+            trackIdFlux.subscribe(slot.getProcessor());
+            Flux.from(slot.getProcessor()).doOnNext((resp) -> {
+                logger.info("Ack from Plc");
+                //          phsHandler.handleInput(1, resp);
+            }).subscribe();
+
+        } catch (SlotCreationException e) {
+            throw new RuntimeException(e);
+        }
+
+        //Slot 2
+
+        try {
+            SlotFromPlcUsable<FratCameraReq, FratDecision> slot = slotsProvider.makeTwoDirectionSlotFromPlc(2, mainScheduler, FratCameraReq.class, FratDecision.class);
+            Flux<FratCameraReq> reqFlux = Flux.from(slot.getPublisher());
+            reqFlux.doOnNext((req) -> {
+                logger.info("new frat req tid: {} | bc: {}", req.getTrackId(), req.getBarcode());
+            }).map((req) -> {
+                return new FratDecision((short) 1002);
+            }).doOnNext((resp) -> {
+                logger.info("Decision send - {}", resp.getDecision());
+            }).subscribe(slot.getSubscriber());
+
+        } catch (SlotCreationException | NoSuchMethodException e) {
+            throw new RuntimeException(e);
+        }
+
+        //Slot 3
+
+        try {
+            SlotFromPlcUsable<TrackIdReq, Object> slot = slotsProvider.makeAckOnlySlotFromPlc(3, mainScheduler, TrackIdReq.class);
+            scale1.getResultFlux().doOnNext((result) -> {
+                logger.info("new result - {}", result);
+            }).subscribe(slot.getSubscriber());
+
+            Flux<TrackIdReq> reqFlux = Flux.from(slot.getPublisher());
+            reqFlux.doOnNext((req) -> {
+                logger.info("new weighting request for TID: {}", req.getTrackId());
+                scale1.newWeightingRequest(req.getTrackId());
+            });
+
+
+            scale1.getResultFlux().doOnNext((result) -> {
+                logger.info("new result - {}", result);
+            }).subscribe(slot.getSubscriber());
+        } catch (SlotCreationException e) {
+            throw new RuntimeException();
+        }
+
+        try {
+            SlotFromPlcUsable<BarcodesVerifyReq, FratDecision> slot = slotsProvider.makeTwoDirectionSlotFromPlc(4, mainScheduler, BarcodesVerifyReq.class, FratDecision.class);
+            Flux<BarcodesVerifyReq> reqFlux = Flux.from(slot.getPublisher());
+            reqFlux.map(BarcodesVerifyReq::verify).subscribe(slot.getSubscriber());
+        } catch (SlotCreationException | NoSuchMethodException e) {
+            throw new RuntimeException();
+        }
+
+
+
+
+    }
+    public void start2() {
+
+        TrackIdProvider trackIdProvider = new TrackIdProvider();
         DecisionMaker decisionMaker = new DecisionMaker();
 
-        TrackIdsPublisher trackIdsPublisher = new TrackIdsPublisher(logger, mainScheduler);
+        TrackIdsPublisher trackIdsPublisher = new TrackIdsPublisher(logger, mainScheduler, trackIdProvider);
         trackIdsPublisher.retrievingDone();
 
         Flux<TrackId> trackIdFlux = Flux.from(trackIdsPublisher).doOnNext((tid) -> {

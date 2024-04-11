@@ -20,6 +20,7 @@ public class OpcSlotsActivator {
     private OpcUaClientProvider clientProvider;
     private UaNotifierSingle uaNotifierSingle;
     private boolean callTimeout;
+    private MethodTimeoutCounter methodTimeoutCounter;
     private Short[] initialCall;
     private AtomicBoolean listenTimeout = new AtomicBoolean(false);
     private AtomicBoolean timeout = new AtomicBoolean(false);
@@ -52,32 +53,25 @@ public class OpcSlotsActivator {
         }
 
     }
-    private void CountTimeout() {
+    private void countTimeout() {
         Thread t = new Thread(() -> {
-            int loopCount = 0;
-            listenTimeout.set(true);
-            while (listenTimeout.get()) {
-                try {
-                    Thread.sleep(10);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-                loopCount++;
-                if(loopCount >= 1100) {
-                    if(listenTimeout.get()) {
-                        timeout.set(true);
-                        listenTimeout.set(false);
-                    }
-                }
-            }
-
-
+            this.timeout.set(this.methodTimeoutCounter.startTimeoutCounting());
         }, "METHOD TIMEOUT");
         t.start();
     }
     public void callMet() {
-        NodeId objectId = new NodeId(3,"\"FB_OPC_COMMUNICATION_DB\"");
-        NodeId methodId = new NodeId(3,"\"FB_OPC_COMMUNICATION_DB\".Method");
+        NodeId objectId = null;
+        NodeId methodId = null;
+        if(uaNotifierSingle.isSimulation()) {
+            objectId = new NodeId(2,"HelloWorld");
+            methodId = new NodeId(2,"HelloWorld/Method");
+        } else {
+            objectId = new NodeId(3,"\"FB_OPC_COMMUNICATION_DB\"");
+            methodId = new NodeId(3,"\"FB_OPC_COMMUNICATION_DB\".Method");
+        }
+
+
+
         short zz = 2;
         short cc = 2;
         CallMethodRequest request = new CallMethodRequest(
@@ -85,14 +79,22 @@ public class OpcSlotsActivator {
         CallMethodResult result = null;
         try {
             logger.info("xc2b - Id = {}", count);
+            this.methodTimeoutCounter = new MethodTimeoutCounter(count);
+            countTimeout();
+            try {
+                Thread.sleep(10);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
             result = clientProvider.getActivatorClient().call(request).get();
             if(!timeout.get()) {
-                listenTimeout.set(false);
+                this.methodTimeoutCounter.stopTimeout();
             } else {
                 logger.info("xc2b - Id = {} - timeout -> new call", count);
                 logger.info("restarting client - {}", clientProvider.getActivatorClient());
                 clientProvider.restartActivatorClient();
                 logger.info("run on new client - {}", clientProvider.getActivatorClient());
+                uaNotifierSingle.setInit(true);
                 timeout.set(false);
                 run();
             }
@@ -109,10 +111,13 @@ public class OpcSlotsActivator {
             if(uaNotifierSingle.isInit()) {
                 Set<Short> initialSet = new HashSet<>(List.of(resultArray));
                 initialSet.addAll(List.of(initialCall));
+                initialSet.remove((short) -1);
                 resultArray = initialSet.toArray(new Short[0]);
                 logger.info("Initial call - {}", Arrays.toString(resultArray));
                 uaNotifierSingle.setInit(false);
             }
+            if(resultArray.length < 1)
+                return;
             if (resultArray[0] != -1) {
                 uaNotifierSingle.runByMethod(resultArray);
             } else {
@@ -121,7 +126,7 @@ public class OpcSlotsActivator {
         } else {
             logger.info("Error calling OPC method - {}", statusCode);
             try {
-                Thread.sleep(1000);
+                Thread.sleep(10);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }

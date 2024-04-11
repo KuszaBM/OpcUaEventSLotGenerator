@@ -11,9 +11,12 @@ import java.util.function.Consumer;
 
 public class TrackIdsPublisher implements Publisher<TrackId> {
 
-	public TrackIdsPublisher(Logger logger, Scheduler scheduler) {
+	private TrackIdProvider trackIdProvider;
+
+	public TrackIdsPublisher(Logger logger, Scheduler scheduler, TrackIdProvider trackIdProvider) {
 		this.logger = logger;
 		this.scheduler = scheduler;
+		this.trackIdProvider = trackIdProvider;
 	}
 
 	@Override
@@ -37,6 +40,7 @@ public class TrackIdsPublisher implements Publisher<TrackId> {
 		do {
 			TrackId next = tid.nextTrackId();
 			if (! trackIdsInUse.contains(next)) {
+
 				lastTrackId = tid;
 				return;
 			}
@@ -70,7 +74,7 @@ public class TrackIdsPublisher implements Publisher<TrackId> {
 	private final void action() {
 		actionQueued = false;
 		while (! subscriptionsQueue.isEmpty()) {
-			TrackId tid = getNextTrackId();
+			TrackId tid = trackIdProvider.takeNewTrackId();
 			if (tid == null)
 				return;
 			actionFor(tid);

@@ -24,10 +24,7 @@ import org.eclipse.milo.opcua.stack.core.types.enumerated.ServerState;
 import org.eclipse.milo.opcua.stack.core.types.enumerated.TimestampsToReturn;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.MediaType;
-import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
@@ -51,10 +48,11 @@ public class OpcUaSlotsProvider {
     private String address;
     private String opcUaName;
     private int nameSpace;
+    private boolean simulation;
     private final SlotsKeeper slotsKeeper;
     private final Scheduler scheduler;
     Logger logger = LoggerFactory.getLogger(OpcUaSlotsProvider.class);
-    private OpcUaSlotsProvider(String address, String opcUaName, int nameSpace, OpcUaClientProvider opcUaClientProvider, SinksHolder sinksHolder) {
+    private OpcUaSlotsProvider(String address, String opcUaName, int nameSpace, boolean simulation, OpcUaClientProvider opcUaClientProvider, SinksHolder sinksHolder) {
         this.address = address;
         this.opcUaName = opcUaName;
         this.nameSpace = nameSpace;
@@ -66,10 +64,11 @@ public class OpcUaSlotsProvider {
         this.slotFromPlcMap = new HashMap<>();
         this.slotToPlcMap = new HashMap<>();
         this.slotsKeeper = new SlotsKeeper();
+        this.simulation = simulation;
     }
-    public static OpcUaSlotsProvider getInstance(String address, String opcUaName, int nameSpace, OpcUaClientProvider opcUaClientProvider, SinksHolder sinksHolder) {
+    public static OpcUaSlotsProvider getInstance(String address, String opcUaName, int nameSpace, boolean simulation, OpcUaClientProvider opcUaClientProvider, SinksHolder sinksHolder) {
         if (instance == null) {
-            instance = new OpcUaSlotsProvider(address, opcUaName, nameSpace, opcUaClientProvider, sinksHolder);
+            instance = new OpcUaSlotsProvider(address, opcUaName, nameSpace, simulation, opcUaClientProvider, sinksHolder);
         }
         return instance;
     }
@@ -113,15 +112,13 @@ public class OpcUaSlotsProvider {
             String[] afterSplit = nodeName.split("_");
             for(int i = 0; i < afterSplit.length; i++ ) {
                 if(afterSplit[i].equals("TOKEN")) {
-                    int z = Integer.parseInt(afterSplit[i-1]);
-                    if(z == 0) {
-                        slotToAdd.put(z, new UaSlotBase(z, SlotType.ToPlc, cN.getNodeId(), nameSpace, opcUaName, opcUaClientProvider, propagator));
+                    int slotId = Integer.parseInt(afterSplit[i-1]);
+                    if(slotId == 0) {
+                        slotToAdd.put(slotId, new UaSlotBase(slotId, SlotType.ToPlc, cN.getNodeId(), nameSpace, opcUaName, opcUaClientProvider, propagator));
                     } else {
-                        logger.info("jajco jajco = {}", afterSplit[i+1]);
-                        String dir = afterSplit[i+1].replace("\"", "");
-                        SlotType slotType = dir.equals("IN") ? SlotType.ToPlc : SlotType.FromPlc;
-                        logger.info("jajco jajco 2 = {} / {}", slotType, dir);
-                        slotToAdd.put(z, new UaSlotBase(z, slotType, cN.getNodeId(), nameSpace, opcUaName, opcUaClientProvider, propagator));
+                        String slotDir = afterSplit[i+1].replace("\"", "");
+                        SlotType slotType = slotDir.equals("IN") ? SlotType.ToPlc : SlotType.FromPlc;
+                        slotToAdd.put(slotId, new UaSlotBase(slotId, slotType, cN.getNodeId(), nameSpace, opcUaName, opcUaClientProvider, propagator));
                     }
                 }
             }
@@ -271,7 +268,6 @@ public class OpcUaSlotsProvider {
     public void readServer() throws UaException {
         logger.info("Reading info from server OpcUa");
         ;
-        String opcUaNameNodeFormat = "this.opcUaName";
         NodeId nodeId = new NodeId(3, this.opcUaName);
         logger.info("aaa - {}", nodeId);
         List<UaNode> nodesList = List.of(opcUaClientProvider.getClient().getAddressSpace().getNode(nodeId));
@@ -305,20 +301,6 @@ public class OpcUaSlotsProvider {
         }
         return ret;
     }
-    public void activateSimSlot(int slotId, Object req) {
-        String uri ="http://127.0.0.1:8089/slot/newReq/" + slotId;
-        try {
-            Mono<String> resp = webClient.post()
-                    .uri(uri)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(BodyInserters.fromValue(req))
-                    .retrieve()
-                    .bodyToMono(String.class);
-            resp.subscribe();
-        } catch (Exception e) {
-            logger.info("bad - ", e);
-        }
-    }
     public SLotGuiPropagator getPropagator() {
         return propagator;
     }
@@ -327,5 +309,9 @@ public class OpcUaSlotsProvider {
     }
     public void setUaNotifierSingle(UaNotifierSingle uaNotifierSingle) {
         this.uaNotifierSingle = uaNotifierSingle;
+    }
+
+    public boolean isSimulation() {
+        return simulation;
     }
 }

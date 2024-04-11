@@ -11,14 +11,16 @@ public class UaNotifierSingle {
     private static UaNotifierSingle instance;
     Logger logger = LoggerFactory.getLogger(UaNotifierSingle.class);
     private Map<Integer, UaResponseListener> slots;
+    private boolean simulation;
     private boolean isInit = false;
 
-    private UaNotifierSingle() {
+    private UaNotifierSingle(boolean simulation) {
+        this.simulation = simulation;
         slots = new HashMap<>();
     }
-    public static UaNotifierSingle getInstance() {
+    public static UaNotifierSingle getInstance(boolean simulation) {
         if (instance == null) {
-            instance = new UaNotifierSingle();
+            instance = new UaNotifierSingle(simulation);
         }
         return instance;
     }
@@ -54,4 +56,7 @@ public class UaNotifierSingle {
         isInit = init;
     }
 
+    public boolean isSimulation() {
+        return simulation;
+    }
 }

@@ -34,7 +34,7 @@ public class OpcSlotsService {
         opcUaSlotsProvider.setWebClient(webClient);
         this.process = process;
 
-        this.processThread = new Thread(this.process::start);
+        this.processThread = new Thread(this.process::start2);
         this.processThread.setName("Process_Thread");
 
         this.opcClientProviderThread = new Thread(this.opcUaClientProvider::startConnection);

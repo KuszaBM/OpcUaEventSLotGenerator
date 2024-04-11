@@ -22,6 +22,14 @@ public class OpcUaWriter <T> implements Consumer<T> {
     Logger logger = LoggerFactory.getLogger(OpcUaWriter.class);
     NodeId tokenId;
 
+//    public NodeId getWriteNodeId() {
+//        String s = slotBase.getOpcUaName();
+//        String s2 = a.name().isEmpty() ?
+//                "\"" + f.getName() + "_" + slotBase.getSlotName() +  "\"" :
+//                "\"" + a.name() + "_" + slotBase.getSlotName() +  "\"";
+//        NodeId node = new NodeId(slotBase.getNamespace(), s + "." + s2);
+//        return node;
+//    }
     public OpcUaWriter(Class<T> cls, UaSlotBase slotBase) {
         this.slotBase = slotBase;
         this.tokenId = slotBase.getTokenId();
