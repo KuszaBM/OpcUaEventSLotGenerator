@@ -43,8 +43,13 @@ public class OpcUaReader<T> implements Supplier<T> {
                 throw new IllegalArgumentException("Name for all constructor parameters need to be defined");
             paramReaders[idx] = () -> {
                 try {
-                    NodeId dataNode = new NodeId(slotBase.getNamespace(),slotBase.getOpcUaName() + "." + "\"" + a.name() + "_" + slotBase.getSlotName() +  "\"");
-//                    NodeId dataNode = new NodeId(slotBase.getNamespace(), slotBase.getOpcUaName() + "\"" + a.name() + "_" + slotBase.getSlotName() +  "\"");
+                    NodeId dataNode = null;
+                    if(slotBase.getOpcUaClientProvider().isSimulation()) {
+                        dataNode = new NodeId(slotBase.getNamespace(), slotBase.getOpcUaName() + "\"" + a.name() + "_" + slotBase.getSlotName()+ "\"");
+                    } else {
+                        dataNode = new NodeId(slotBase.getNamespace(),slotBase.getOpcUaName() + "." + "\"" + a.name() + "_" + slotBase.getSlotName() +  "\"");
+                    }
+                    log.info("SLOT {} - reading node - {}",slotBase.getSlotId(), dataNode);
                     return slotBase.getOpcUaClientProvider().getClient().getAddressSpace().getVariableNode(dataNode).readValue().getValue().getValue();
                 } catch (UaException e) {
                     log.info("SLOT {} - Exception while reading request data - ", slotBase.getSlotId(), e);

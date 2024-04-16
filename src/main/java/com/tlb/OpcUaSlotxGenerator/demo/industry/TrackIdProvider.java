@@ -19,11 +19,16 @@ public class TrackIdProvider {
     private void prepareNext(TrackId givenTrackId) {
         inPreparation.set(true);
         Thread preparingThread = new Thread(() -> {
+            log.info("preparing nex trackId - given was - {}| rm size - {}", givenTrackId.getTrackId(), removedQueue.size());
             TrackId tempTrackIdHolder = removedQueue.poll();
             if(tempTrackIdHolder == null) {
+                log.info("No available trackIds in rm queue - {}", removedQueue.size());
                 tempTrackIdHolder = givenTrackId.nextTrackId();
+                log.info("next trackId taken - {}", tempTrackIdHolder.getTrackId());
                 while (trackIdsInUse.contains(tempTrackIdHolder)) {
+                    log.info("TrackId {} already inUse - taking next", tempTrackIdHolder.getTrackId());
                     tempTrackIdHolder = tempTrackIdHolder.nextTrackId();
+                    log.info("Next taken trackId {}", tempTrackIdHolder.getTrackId());
                     if(tempTrackIdHolder.equals(givenTrackId)) {
                         try {
                             log.info("No TrackId available - waiting for removal");
@@ -34,7 +39,10 @@ public class TrackIdProvider {
                     }
                         break;
                 }
+            } else {
+                log.info("Taken trackId from rm - trackId {} | rm size {}", tempTrackIdHolder.getTrackId(), removedQueue.size());
             }
+            log.info("new trackId {} ready to take", tempTrackIdHolder.getTrackId());
             this.trackIdToTake = tempTrackIdHolder;
             this.inPreparation.set(false);
         });
@@ -49,7 +57,7 @@ public class TrackIdProvider {
         this.trackIdToTake = initTid;
     }
     public synchronized TrackId takeNewTrackId() {
-        if(inPreparation.get()) {
+        while (inPreparation.get()) {
             try {
                 Thread.sleep(10);
             } catch (InterruptedException e) {
@@ -59,12 +67,17 @@ public class TrackIdProvider {
         TrackId givenTrackId = this.trackIdToTake;
         prepareNext(givenTrackId);
         trackIdsInUse.add(givenTrackId);
-
+        log.info("Returning trackId - {}", givenTrackId.getTrackId());
         return givenTrackId;
     }
     public void trackIdRemove(TrackId trackId) {
-        if(trackIdsInUse.remove(trackId))
+        if(trackIdsInUse.remove(trackId)) {
             removedQueue.add(trackId);
+            log.info("TrackId {} released - rm size {}", trackId.getTrackId(), removedQueue.size());
+        } else {
+            log.info("Unable to remove trackId {} - not in inUseList", trackId.getTrackId());
+        }
+
     }
 
 }

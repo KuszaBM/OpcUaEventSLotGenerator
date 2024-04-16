@@ -268,7 +268,7 @@ public class OpcUaSlotsProvider {
     public void readServer() throws UaException {
         logger.info("Reading info from server OpcUa");
         ;
-        NodeId nodeId = new NodeId(3, this.opcUaName);
+        NodeId nodeId = new NodeId(this.nameSpace, this.opcUaName);
         logger.info("aaa - {}", nodeId);
         List<UaNode> nodesList = List.of(opcUaClientProvider.getClient().getAddressSpace().getNode(nodeId));
         for(UaNode n : nodesList) {

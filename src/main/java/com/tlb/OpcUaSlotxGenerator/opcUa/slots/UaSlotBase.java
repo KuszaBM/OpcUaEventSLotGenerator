@@ -87,6 +87,7 @@ public class UaSlotBase {
             boolean tokenAckValue = getSlotType().equals(SlotType.ToPlc);
             Variant writeValue = new Variant(tokenAckValue);
             DataValue dataValue = DataValue.valueOnly(writeValue);
+            logger.info("WRITING TOKEN {}",tokenId);
             CompletableFuture<StatusCode> statusCompletable = getOpcUaClientProvider().getClient().writeValue(tokenId, dataValue);
             StatusCode statusCode = statusCompletable.get();
             logger.info("SLOT {} - Token ack to opc value - {} | Response - {}",slotId, writeValue, statusCode);

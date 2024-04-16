@@ -22,14 +22,20 @@ public class OpcUaWriter <T> implements Consumer<T> {
     Logger logger = LoggerFactory.getLogger(OpcUaWriter.class);
     NodeId tokenId;
 
-//    public NodeId getWriteNodeId() {
-//        String s = slotBase.getOpcUaName();
-//        String s2 = a.name().isEmpty() ?
-//                "\"" + f.getName() + "_" + slotBase.getSlotName() +  "\"" :
-//                "\"" + a.name() + "_" + slotBase.getSlotName() +  "\"";
-//        NodeId node = new NodeId(slotBase.getNamespace(), s + "." + s2);
-//        return node;
-//    }
+    public NodeId getWriteNodeId(String name) {
+        NodeId node = null;
+        if(slotBase.getOpcUaClientProvider().isSimulation()) {
+            String s = slotBase.getOpcUaName();
+            String s2 = "\"" + name + "_" + slotBase.getSlotName() + "\"";
+            node = new NodeId(slotBase.getNamespace(), s + s2);
+        } else {
+            String s = slotBase.getOpcUaName();
+            String s2 = "\"" + name + "_" + slotBase.getSlotName() +  "\"";
+            node = new NodeId(slotBase.getNamespace(), s + "." + s2);
+        }
+
+        return node;
+    }
     public OpcUaWriter(Class<T> cls, UaSlotBase slotBase) {
         this.slotBase = slotBase;
         this.tokenId = slotBase.getTokenId();
@@ -37,12 +43,14 @@ public class OpcUaWriter <T> implements Consumer<T> {
             OpcUaNode a = f.getAnnotation(OpcUaNode.class);
             if(a == null)
                 continue;
-            String s = slotBase.getOpcUaName();
-            String s2 = a.name().isEmpty() ?
-                    "\"" + f.getName() + "_" + slotBase.getSlotName() +  "\"" :
-                    "\"" + a.name() + "_" + slotBase.getSlotName() +  "\"";
-            NodeId node = new NodeId(slotBase.getNamespace(), s + "." + s2);
 
+            String name = a.name().isEmpty() ? f.getName() : a.name();
+//            String s = slotBase.getOpcUaName();
+//            String s2 = a.name().isEmpty() ?
+//                    "\"" + f.getName() + "_" + slotBase.getSlotName() +  "\"" :
+//                    "\"" + a.name() + "_" + slotBase.getSlotName() +  "\"";
+//            NodeId node = new NodeId(slotBase.getNamespace(), s + "." + s2);
+            NodeId node = getWriteNodeId(name);
             logger.info("--- writing node - {} ", node);
 
             f.setAccessible(true);

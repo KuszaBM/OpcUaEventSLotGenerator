@@ -163,4 +163,8 @@ public class TrackIdsPublisher implements Publisher<TrackId> {
 		final Subscriber<? super TrackId> subscriber;
 		long curentlyRequested = 0;
 	}
+
+	public TrackIdProvider getTrackIdProvider() {
+		return trackIdProvider;
+	}
 }

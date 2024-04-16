@@ -98,6 +98,10 @@ public class OpcUaClientProvider {
         return isConnected;
     }
 
+    public boolean isSimulation() {
+        return simulation;
+    }
+
     public OpcUaClient getClient() {
         return client;
     }

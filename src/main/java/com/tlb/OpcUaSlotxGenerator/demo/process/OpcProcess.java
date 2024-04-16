@@ -181,6 +181,7 @@ public class OpcProcess {
             SlotFromPlcUsable<ReportReq, Object> slot = slotsProvider.makeAutoAckSlotFromPlc(4, mainScheduler, ReportReq.class);
             Flux.from(slot.getPublisher()).doOnNext((s) -> {
                 logger.info("Sorter report from exit - {} | {}", s.getTrackId(), s.getExit());
+                trackIdProvider.trackIdRemove(new TrackId(s.getTrackId()));
             }).subscribe();
         } catch (SlotCreationException e) {
             throw new RuntimeException(e);
