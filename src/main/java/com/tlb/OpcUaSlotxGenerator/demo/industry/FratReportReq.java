@@ -8,7 +8,7 @@ public class FratReportReq {
     private short reportValue;
 
     @OpcUaConstructor
-    public FratReportReq(@OpcUaNode(name = "TID_DATA") short trackId,@OpcUaNode(name = "FRAT_REPORT_DATA") short reportValue) {
+    public FratReportReq(@OpcUaNode(name = "REPORT_TID_DATA") short trackId,@OpcUaNode(name = "REPORT_DATA") short reportValue) {
         this.trackId = trackId;
         this.reportValue = reportValue;
     }

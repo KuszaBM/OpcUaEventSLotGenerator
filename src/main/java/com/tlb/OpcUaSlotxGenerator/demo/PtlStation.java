@@ -13,6 +13,8 @@ public class PtlStation {
     private boolean completing;
     private Sinks.Many<StationResp> sink;
     private Flux<StationResp> outputFlux;
+    private Sinks.Many<StationResp> sinkTemp;
+    private Flux<StationResp> outputFluxTemp;
 
     public PtlStation(String name) {
         this.name = name;
@@ -29,7 +31,7 @@ public class PtlStation {
     }
     public void startCompleting() {
         int counter = 0;
-        if(actualBarcode != null) {
+        if(actualBarcode != null && !completing) {
             log.info("Picking started - lighting lamps");
             completing = true;
             while (completing) {
@@ -39,14 +41,20 @@ public class PtlStation {
                     throw new RuntimeException(e);
                 }
                 counter++;
-                if (counter > 150) {
+                if (counter > 50) {
                     completing = false;
                 }
             }
             this.actualBarcode = null;
             sink.tryEmitNext(new StationResp());
+        } else {
+            if(actualBarcode == null)
+                log.info("no barcode on station - !!!");
+            if(completing) {
+                log.info("Station in completing");
+            }
         }
-        log.info("no barcode on station - !!!");
+
     }
 
     public String getName() {

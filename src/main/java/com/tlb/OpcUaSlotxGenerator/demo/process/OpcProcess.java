@@ -1,5 +1,8 @@
 package com.tlb.OpcUaSlotxGenerator.demo.process;
 
+import com.tlb.OpcUaSlotxGenerator.demo.PtlStation;
+import com.tlb.OpcUaSlotxGenerator.demo.communicationPoints.FratCamera;
+import com.tlb.OpcUaSlotxGenerator.demo.communicationPoints.PickingStation;
 import com.tlb.OpcUaSlotxGenerator.demo.industry.*;
 import com.tlb.OpcUaSlotxGenerator.demo.slots.ReportReq;
 import com.tlb.OpcUaSlotxGenerator.exceptions.SlotCreationException;
@@ -16,6 +19,7 @@ import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
 import java.util.Arrays;
+import java.util.List;
 
 @Component
 public class OpcProcess {
@@ -35,24 +39,8 @@ public class OpcProcess {
     }
 
     public void st11() {
-
-        WeightingPoint scale1 = new WeightingPoint() {
-            @Override
-            public Flux<Float> getResultFlux() {
-                return null;
-            }
-
-            @Override
-            public void setWeighting(boolean isWeighting) {
-
-            }
-
-            @Override
-            public void newWeightingRequest(short tid) {
-
-            }
-        };
-
+        WeightingPoint scale1 = new Scale();
+        PtlStation station = new PtlStation("AB1");
         TrackIdProvider trackIdProvider = new TrackIdProvider();
 
         //Slot 1
@@ -96,15 +84,16 @@ public class OpcProcess {
 
         try {
             SlotFromPlcUsable<TrackIdReq, Object> slot = slotsProvider.makeAckOnlySlotFromPlc(3, mainScheduler, TrackIdReq.class);
-            scale1.getResultFlux().doOnNext((result) -> {
-                logger.info("new result - {}", result);
-            }).subscribe(slot.getSubscriber());
+//            scale1.getResultFlux().doOnNext((result) -> {
+//                logger.info("new result - {}", result);
+//            }).subscribe(slot.getSubscriber());
 
             Flux<TrackIdReq> reqFlux = Flux.from(slot.getPublisher());
             reqFlux.doOnNext((req) -> {
                 logger.info("new weighting request for TID: {}", req.getTrackId());
                 scale1.newWeightingRequest(req.getTrackId());
-            });
+                trackIdProvider.trackIdRemove(new TrackId(req.getTrackId()));
+            }).subscribe();
 
 
             scale1.getResultFlux().doOnNext((result) -> {
@@ -114,6 +103,8 @@ public class OpcProcess {
             throw new RuntimeException();
         }
 
+        //Slot 4
+
         try {
             SlotFromPlcUsable<BarcodesVerifyReq, FratDecision> slot = slotsProvider.makeTwoDirectionSlotFromPlc(4, mainScheduler, BarcodesVerifyReq.class, FratDecision.class);
             Flux<BarcodesVerifyReq> reqFlux = Flux.from(slot.getPublisher());
@@ -122,8 +113,31 @@ public class OpcProcess {
             throw new RuntimeException();
         }
 
+        // FRAT SLOTS 5 - 6 - 7
+        try {
+            List<Short> decisions = List.of((short)1007,(short) 4001);
+            FratCamera frat1 = new FratCamera("SK6", 5, 6, 7, decisions, mainScheduler, trackIdProvider ,slotsProvider);
+            frat1.register();
+        } catch (Exception e) {
+            logger.info("ex creating frat - ", e);
+        }
 
+        // FRAT SLOTS 8 - 9 - 10
+        try {
+            List<Short> decisions = List.of((short)1009,(short) 7002,(short) 7004);
+            FratCamera frat1 = new FratCamera("SK7", 8, 9, 10, decisions, mainScheduler, trackIdProvider ,slotsProvider);
+            frat1.register();
+        } catch (Exception e) {
+            logger.info("ex creating frat - ", e);
+        }
 
+        PickingStation station1 = new PickingStation("AB1", 11, 12, mainScheduler, slotsProvider);
+        station1.register();
+
+        PickingStation station2 = new PickingStation("AB2", 13, 14, mainScheduler, slotsProvider);
+        station2.register();
+
+        slotsProvider.getUaNotifierSingle().setInit(true);
 
     }
     public void start2() {
@@ -186,6 +200,10 @@ public class OpcProcess {
         } catch (SlotCreationException e) {
             throw new RuntimeException(e);
         }
+
+
+
+
 
         slotsProvider.getUaNotifierSingle().setInit(true);
     }

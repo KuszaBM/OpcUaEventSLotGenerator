@@ -43,13 +43,7 @@ public class OpcUaWriter <T> implements Consumer<T> {
             OpcUaNode a = f.getAnnotation(OpcUaNode.class);
             if(a == null)
                 continue;
-
             String name = a.name().isEmpty() ? f.getName() : a.name();
-//            String s = slotBase.getOpcUaName();
-//            String s2 = a.name().isEmpty() ?
-//                    "\"" + f.getName() + "_" + slotBase.getSlotName() +  "\"" :
-//                    "\"" + a.name() + "_" + slotBase.getSlotName() +  "\"";
-//            NodeId node = new NodeId(slotBase.getNamespace(), s + "." + s2);
             NodeId node = getWriteNodeId(name);
             logger.info("--- writing node - {} ", node);
 
@@ -60,7 +54,10 @@ public class OpcUaWriter <T> implements Consumer<T> {
                     DataValue dataValue = DataValue.valueOnly(writeValue);
                     logger.info("try to update node - {}", node);
                     CompletableFuture<StatusCode> status = slotBase.getOpcUaClientProvider().getClient().writeValue(node, dataValue);
-                    logger.info("Send to Opc - {} | Response - {}", dataValue, status.get());
+                    StatusCode statusCode = status.get();
+                    logger.info("Send to Opc - {} | Response - {}", dataValue, statusCode);
+                    if(!statusCode.isGood())
+                        throw new IllegalStateException("OPC writer failure write");
                 } catch (IllegalAccessException | InterruptedException | ExecutionException e) {
                     throw new RuntimeException(e);
                 }
@@ -84,9 +81,7 @@ public class OpcUaWriter <T> implements Consumer<T> {
         try {
             for (Consumer<T> c : writes)
                 c.accept(t);
-
             slotBase.writeSlotAck();
-
         } catch (Exception e) {
             logger.info("Exception while writing to PLC - Connection state: {}", slotBase.getOpcUaClientProvider().isConnected() ? "Connected" : "Not Connected");
             logger.info("MES - ", e);

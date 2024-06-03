@@ -34,7 +34,8 @@ public class OpcSlotsService {
         opcUaSlotsProvider.setWebClient(webClient);
         this.process = process;
 
-        this.processThread = new Thread(this.process::start2);
+//        this.processThread = new Thread(this.process::start2);
+        this.processThread = new Thread(this.process::st11);
         this.processThread.setName("Process_Thread");
 
         this.opcClientProviderThread = new Thread(this.opcUaClientProvider::startConnection);
@@ -60,6 +61,13 @@ public class OpcSlotsService {
         }
         this.opcSlotsActivator = new OpcSlotsActivator(this.opcUaClientProvider, this.opcUaSlotsProvider.getUaNotifierSingle());
         opcSlotsProviderThread.start();
+        log.info("1119 dupa jajko - {}", opcUaSlotsProvider.isAfterInit());
+        try {
+            Thread.sleep(200);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+        log.info("1119  11 dupa jajko - {}", opcUaSlotsProvider.isAfterInit());
         while (!opcUaSlotsProvider.isAfterInit()) {
             try {
                 Thread.sleep(500);

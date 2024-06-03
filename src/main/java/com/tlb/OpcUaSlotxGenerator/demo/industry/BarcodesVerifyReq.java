@@ -12,7 +12,7 @@ public class BarcodesVerifyReq {
     private List<String> barcodes = new ArrayList<>();
 
     @OpcUaConstructor
-    public BarcodesVerifyReq(@OpcUaNode(name = "BARCODE_1_DATA") String barcode1, @OpcUaNode(name = "BARCODE_2_DATA") String barcode2, @OpcUaNode(name = "BARCODE_3_DATA") String barcode3, @OpcUaNode(name = "BARCODE_4_DATA") String barcode4) {
+    public BarcodesVerifyReq(@OpcUaNode(name = "CAM_BARCODE1_DATA") String barcode1, @OpcUaNode(name = "CAM_BARCODE2_DATA") String barcode2, @OpcUaNode(name = "CAM_BARCODE3_DATA") String barcode3, @OpcUaNode(name = "CAM_BARCODE4_DATA") String barcode4) {
         barcodes.add(barcode1);
         barcodes.add(barcode2);
         barcodes.add(barcode3);
@@ -24,7 +24,7 @@ public class BarcodesVerifyReq {
         if(set.size() > 1) {
             return new FratDecision((short) 3001);
         } else {
-            return new FratDecision((short) 1003);
+            return new FratDecision((short) 1004);
         }
     }
 }

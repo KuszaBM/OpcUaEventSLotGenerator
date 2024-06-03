@@ -51,6 +51,7 @@ public class OpcUaSlotsProvider {
     private boolean simulation;
     private final SlotsKeeper slotsKeeper;
     private final Scheduler scheduler;
+    private List<String> a = new ArrayList<>();
     Logger logger = LoggerFactory.getLogger(OpcUaSlotsProvider.class);
     private OpcUaSlotsProvider(String address, String opcUaName, int nameSpace, boolean simulation, OpcUaClientProvider opcUaClientProvider, SinksHolder sinksHolder) {
         this.address = address;
@@ -85,10 +86,11 @@ public class OpcUaSlotsProvider {
         slotToPlcMap.put(slot.getSlotId(), slot);
     }
     public void initialStart() {
+        logger.info("initialig opc  - {}", afterInit);
         try {
             readServer();
-        } catch (UaException e) {
-            throw new RuntimeException(e);
+        } catch (UaException | InterruptedException e) {
+            logger.info("Śmierdzi kupskiem 113 1");
         }
         afterInit = true;
         //propagateALlSlots();
@@ -108,6 +110,7 @@ public class OpcUaSlotsProvider {
         String nodeName = cN.getDisplayName().getText();
         if(nodeName == null)
             return;
+        logger.info("jajca 12");
         if(nodeName.contains("TOKEN")) {
             String[] afterSplit = nodeName.split("_");
             for(int i = 0; i < afterSplit.length; i++ ) {
@@ -123,24 +126,34 @@ public class OpcUaSlotsProvider {
                 }
             }
         }
+        logger.info("jajca 13");
         if(cN.getNodeClass().getValue() == 2) {
             try {
                 DataValue dV = opcUaClientProvider.getClient().getAddressSpace().getVariableNode(cN.getNodeId()).readValue();
+                if(nodeName.contains("SLOT")) {
+                            a.add(nodeName);
+                }
                 logger.info("Start value = {}", dV.getValue());
             } catch (UaException e) {
-                throw new RuntimeException(e);
+                logger.info("jebie gówbnem 15", e);
             }
         } else {
+            logger.info("jajca 14");
             try {
-                if(cN.browseNodes().size() > 0) {
-                    logger.info("-------- inside [{}] | nodes - {} ----------", cN.getDisplayName(), cN.browseNodes().size());
-                    for (UaNode ccN : cN.browseNodes()) {
+                logger.info("jajca 15");
+                List<? extends UaNode> list = cN.browseNodes();
+                logger.info("jajca 16");
+                if(list.size() > 0) {
+                    logger.info("-------- inside [{}] | nodes - {} ----------", cN.getDisplayName(), list.size());
+                    for (UaNode ccN : list) {
                         nodeShowUp(ccN);
+                        Thread.sleep(30);
                     }
                 }
             } catch (UaException e) {
                 logger.info("Cannot read deeper inside this node");
-                throw new RuntimeException(e);
+            } catch (InterruptedException e) {
+                logger.info("jebie gówbnem 151", e);
             }
         }
     }
@@ -265,7 +278,7 @@ public class OpcUaSlotsProvider {
             logger.info("SLOT {} - {}", e.getKey(), e.getValue().getSlotType());
         }
     }
-    public void readServer() throws UaException {
+    public void readServer() throws UaException, InterruptedException {
         logger.info("Reading info from server OpcUa");
         ;
         NodeId nodeId = new NodeId(this.nameSpace, this.opcUaName);
@@ -273,11 +286,15 @@ public class OpcUaSlotsProvider {
         List<UaNode> nodesList = List.of(opcUaClientProvider.getClient().getAddressSpace().getNode(nodeId));
         for(UaNode n : nodesList) {
             logger.info("-------- node [{}] ---------", n.getDisplayName().getText());
+            Thread.sleep(330);
             nodeShowUp(n);
         }
         logger.info("added Slots");
         for(Map.Entry<Integer, UaSlotBase> e : slotToAdd.entrySet()) {
             logger.info("SLOT {} - {}", e.getKey(), e.getValue().getSlotType());
+        }
+        for(String s : a) {
+            System.out.println(s);
         }
     }
     public Map<Integer, UaSlotBase> getSlotToAdd() {

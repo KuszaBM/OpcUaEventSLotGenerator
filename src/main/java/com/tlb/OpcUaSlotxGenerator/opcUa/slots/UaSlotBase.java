@@ -95,18 +95,17 @@ public class UaSlotBase {
             logger.info("SLOT {} - Token state after write - {}", slotId, opcTokenState);
             if(opcTokenState != tokenAckValue) {
                 logger.info("Writing token not done ");
-                while (opcTokenState != tokenAckValue) {
-                    Thread.sleep(20);
-                    if(!inAckMode.get()) {
-                        logger.info("token change received by PLC - BREAK");
-                        break;
-                    }
-                    CompletableFuture<StatusCode> rewriteStatusCompletable = getOpcUaClientProvider().getClient().writeValue(tokenId, dataValue);
-                    StatusCode rewriteStatus = rewriteStatusCompletable.get();
-                    logger.info("SLOT {} - Renew Token ack to opc value - {} | Response - {}",slotId, writeValue, rewriteStatus);
-                    opcTokenState = (Boolean) getOpcUaClientProvider().getClient().getAddressSpace().getVariableNode(tokenId).readValue().getValue().getValue();
-                    logger.info("SLOT {} - Renew Token state after write - {}", slotId, opcTokenState);
-                }
+//                while (opcTokenState != tokenAckValue) {
+//                    if(!inAckMode.get()) {
+//                        logger.info("token change received by PLC - BREAK");
+//                        break;
+//                    }
+//                    CompletableFuture<StatusCode> rewriteStatusCompletable = getOpcUaClientProvider().getClient().writeValue(tokenId, dataValue);
+//                    StatusCode rewriteStatus = rewriteStatusCompletable.get();
+//                    logger.info("SLOT {} - Renew Token ack to opc value - {} | Response - {}",slotId, writeValue, rewriteStatus);
+//                    opcTokenState = (Boolean) getOpcUaClientProvider().getClient().getAddressSpace().getVariableNode(tokenId).readValue().getValue().getValue();
+//                    logger.info("SLOT {} - Renew Token state after write - {}", slotId, opcTokenState);
+//                }
             }
             setInAckMode(false);
             logger.info("SLOT {} - finished ", slotId);

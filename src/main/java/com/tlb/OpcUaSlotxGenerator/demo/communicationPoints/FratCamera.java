@@ -11,6 +11,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Scheduler;
 
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class FratCamera implements communicationPoint {
@@ -38,19 +39,15 @@ public class FratCamera implements communicationPoint {
             Scheduler mainScheduler,
             TrackIdProvider trackIdProvider,
             OpcUaSlotsProvider slotsProvider
-    ) {
+    ) throws SlotCreationException, NoSuchMethodException {
         this.name = name;
         this.logger = LoggerFactory.getLogger(name);
         this.decisions = decisions;
 
         // Creating slots
-        try {
-            this.trackIdSlot = slotsProvider.makeSlotToPlc(trackIdSlotId, mainScheduler, TrackId.class, TrackIdResponse.class);
-            this.decisionSlot = slotsProvider.makeTwoDirectionSlotFromPlc(decisionSlotId, mainScheduler, FratCameraReq.class, FratDecision.class);
-            this.reportSlot = slotsProvider.makeAutoAckSlotFromPlc(reportSlotId, mainScheduler, FratReportReq.class);
-        } catch (SlotCreationException | NoSuchMethodException e) {
-            throw new RuntimeException(e);
-        }
+        this.trackIdSlot = slotsProvider.makeSlotToPlc(trackIdSlotId, mainScheduler, TrackId.class, TrackIdResponse.class);
+        this.decisionSlot = slotsProvider.makeTwoDirectionSlotFromPlc(decisionSlotId, mainScheduler, FratCameraReq.class, FratDecision.class);
+        this.reportSlot = slotsProvider.makeAutoAckSlotFromPlc(reportSlotId, mainScheduler, FratReportReq.class);
 
         // crating fluxes
         this.trackIdsPublisher = new TrackIdsPublisher(LoggerFactory.getLogger("FRAT_TID_PUB"), mainScheduler, trackIdProvider);
@@ -68,8 +65,11 @@ public class FratCamera implements communicationPoint {
                     logger.info("Decision request for TID: {} | BC: {}", req.getTrackId(), req.getBarcode());
                 })
                 .map((req) -> {
-                    int rand = (int) ((Math.random() * (decisions.size() - 1)) + 1);
+                    int rand = new Random().nextInt(decisions.size());
+                    logger.info("bardzo dużo gwizdeczek *************** Decision size {} - rand = {}", decisions.size(), rand);
                     return new FratDecision(decisions.get(rand));
+                }).doOnNext((dec) -> {
+                    logger.info("new decision for {} - {}", name, dec.getDecision());
                 });
 
             // Slot 3
@@ -104,9 +104,9 @@ public class FratCamera implements communicationPoint {
     }
     @Override
     public void register() {
-        this.trackIdFlux.subscribe();
+        this.trackIdFlux.subscribe(trackIdSlot.getProcessor());
         this.trackIdResponseFlux.subscribe();
         this.fratDecisionFlux.subscribe(decisionSlot.getSubscriber());
-        this.fratReportReqFlux.subscribe(reportSlot.getSubscriber());
+        this.fratReportReqFlux.subscribe();
     }
 }

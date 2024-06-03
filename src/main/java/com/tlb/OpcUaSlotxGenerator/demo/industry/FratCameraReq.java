@@ -8,7 +8,7 @@ public class FratCameraReq {
     private String barcode;
 
     @OpcUaConstructor
-    public FratCameraReq(@OpcUaNode(name = "CAMERA_TID_DATA") short trackId,@OpcUaNode(name = "CAMERA_BARCODE_DATA") String barcode) {
+    public FratCameraReq(@OpcUaNode(name = "TID_DATA") short trackId, @OpcUaNode(name = "CAM_BARCODE_DATA") String barcode) {
         this.trackId = trackId;
         this.barcode = barcode;
     }

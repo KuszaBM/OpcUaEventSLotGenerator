@@ -27,7 +27,6 @@ public class SlotFromPlc implements UaResponseListener {
         if (this.reader != null)
             throw new IllegalStateException("makePublisher already called");
         this.plcExecutor = plcExecutor;
-        isListening = true;
         SlotReader<Req> publisher = new SlotReader<>(requestReader);
         publisher.setReqReference(classReq);
         this.reader = publisher;
@@ -48,7 +47,7 @@ public class SlotFromPlc implements UaResponseListener {
             throw new IllegalStateException("makeSubscriber or makeAckOnlySubscriber or makeAutoAck already called");
         this.fluxExecutor = fluxExecutor;
         SubscribingSlotResponder<Object> subscriber = new SubscribingSlotResponder<>(null);
-        this.subscriber = subscriber;
+        this.subscriber = new TrivialResponder();
         return subscriber;
     }
     public void makeAutoAck(Scheduler scheduler) {
@@ -62,16 +61,15 @@ public class SlotFromPlc implements UaResponseListener {
     }
 
     private final void writePhsResponseAck() {
-        slotBase.writeSlotAck();
+        logger.info("ac 12");
+        //slotBase.writeSlotAck();
     }
     Logger logger = LoggerFactory.getLogger(SlotFromPlc.class);
     private ReaderBase reader;
     private SubscriberBase subscriber;
     private UaNotifierSingle uaNotifierSingle;
     private UaSlotBase slotBase;
-    private boolean isListening;
     private final boolean direction = true;
-
     private Scheduler plcExecutor;
     private Scheduler fluxExecutor;
     private boolean twoDirectionToken = false;
@@ -161,6 +159,9 @@ public class SlotFromPlc implements UaResponseListener {
                 request.set(null);
                 slotBase.setInAckMode(false);
             }
+            if(twoDirectionToken) {
+                request.set(null);
+            }
             plcExecutor.schedule(() -> {
                 slotBase.checkResponseState();
                 Req req = requestReader.get();
@@ -243,9 +244,8 @@ public class SlotFromPlc implements UaResponseListener {
     private final class TrivialResponder implements SubscriberBase {
         @Override
         public void requestedPhsResponse() {
-            plcExecutor.schedule(SlotFromPlc.this::writePhsResponseAck);
-
-
+            logger.info("11 = 23");
+            plcExecutor.schedule(slotBase::writeSlotAck);
         }
 
     }
